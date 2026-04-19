@@ -895,37 +895,34 @@ function loadAssets(cb) {
   var total = keys.length;
   var loaded = 0;
 
-  function loadNext() {
-    if (keys.length === 0) {
+  function onLoad() {
+    loaded++;
+    setLoadProgress(Math.round(loaded / total * 95) + 5, loaded + '/' + total + ' 読込完了');
+    if (loaded >= total) {
       setLoadProgress(100, '完了！');
-      setTimeout(function(){ onAssetsLoaded(cb); }, 300);
-      return;
+      setTimeout(function(){ onAssetsLoaded(cb); }, 200);
     }
-    var key = keys.shift();
-    setLoadProgress(Math.round((loaded / total) * 90) + 5, key + ' 読込中...');
+  }
 
+  // 全ファイルを並列取得
+  keys.forEach(function(key) {
     var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: key }));
     fetch(url, { redirect: 'follow' })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data && data.success && data.dataUrl) {
           ASSETS[data.key] = data.dataUrl;
-          // frameが読み込まれたら即座に適用
           if (data.key === 'frame') applyFrame();
         } else {
           console.warn('asset failed:', key, data ? data.message : 'null');
         }
-        loaded++;
-        loadNext();
+        onLoad();
       })
       .catch(function(e) {
         console.warn('asset fetch failed:', key, e);
-        loaded++;
-        loadNext();
+        onLoad();
       });
-  }
-
-  loadNext();
+  });
 }
 
 function positionLabels() {
