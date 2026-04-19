@@ -5,6 +5,119 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ガチャシステム</title>
   <style>
+    /* ===== ログイン画面 ===== */
+    .tab-btns {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      position: absolute;
+      top: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      white-space: nowrap;
+    }
+    .tab-btn-item {
+      padding: 6px 18px;
+      font-size: 13px;
+      font-weight: bold;
+      background: #ccc;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: opacity 0.25s, background 0.25s;
+    }
+    .tab-btn-item.active { background: #444; opacity: 1; }
+
+    .card-stage {
+      position: relative;
+      margin-top: 44px;
+      overflow: visible;
+      width: 140%;
+      margin-left: -20%;
+      aspect-ratio: 1920 / 1080;
+    }
+    .tab-card {
+      position: absolute;
+      top: 0; left: 0;
+      width: calc(100% - 12px);
+      aspect-ratio: 1920 / 1080;
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-color: rgba(200,200,200,0.15);
+      border: none;
+      padding: 12% 36% 11% 36%;
+      box-sizing: border-box;
+      transform-origin: top center;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      cursor: pointer;
+    }
+    .tab-card.front {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      z-index: 2;
+    }
+    .tab-card.back {
+      transform: scale(0.86) translateX(46%) translateY(14px);
+      opacity: 0.65;
+      z-index: 1;
+    }
+    .card-tab-label { display: none; }
+    .tab-card label {
+      display: block;
+      font-size: clamp(10px,1.6vw,13px);
+      margin-bottom: 3px;
+      color: #444;
+    }
+    .tab-card input {
+      width: 100%; box-sizing: border-box;
+      padding: clamp(3px,0.8vw,6px) 8px;
+      font-size: clamp(10px,1.6vw,13px);
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      margin-bottom: clamp(2px,0.5vw,5px);
+      background: rgba(255,255,255,0.5);
+      pointer-events: none;
+    }
+    .tab-card.front input {
+      background: rgba(255,255,255,0.95);
+      border-color: #bbb;
+      pointer-events: auto;
+    }
+    #login-btn-wrap {
+      text-align: center;
+      margin-top: 16px;
+      position: relative;
+      z-index: 5;
+    }
+    button.main-btn {
+      display: inline-block;
+      min-width: 200px;
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      color: #fff;
+      background: linear-gradient(135deg, #ff80b0, #ffb347);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin-top: 8px;
+    }
+    button.main-btn:hover { transform: scale(1.04); }
+    button.main-btn:active { transform: scale(0.97); }
+    button#btn-login {
+      background: linear-gradient(135deg, #80c8ff, #b47fff);
+      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
+    }
+    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
+    .err { color: #c00; }
+    .ok  { color: #080; }
+
     * { box-sizing: border-box; }
     body {
       font-family: sans-serif;
@@ -306,120 +419,7 @@
       font-size: 12px; padding: 4px 12px; cursor: pointer; border-radius: 12px;
     }
 
-        /* ===== ログイン画面 ===== */
-    .tab-btns {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      position: absolute;
-      top: -38px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      white-space: nowrap;
-    }
-    .tab-btn-item {
-      padding: clamp(4px,1vw,6px) clamp(10px,2.5vw,18px);
-      font-size: clamp(11px,1.8vw,13px);
-      font-weight: bold;
-      background: #ccc;
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      cursor: pointer;
-      opacity: 0.45;
-      transition: opacity 0.25s, background 0.25s;
-      letter-spacing: 0.05em;
-    }
-    .tab-btn-item.active { background: #444; opacity: 1; }
-
-    .card-stage {
-      position: relative;
-      margin-top: 44px;
-      overflow: visible;
-      width: 140%;
-      margin-left: -20%;
-      /* aspect-ratioで1920/1080の高さを確保 */
-      aspect-ratio: 1920 / 1080;
-    }
-    .tab-card {
-      position: absolute; top: 0; left: 0;
-      width: calc(100% - 12px);
-      aspect-ratio: 1920 / 1080;
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      background-color: rgba(200,200,200,0.15); /* フレーム未ロード時の仮背景 */
-      border: none;
-      padding: 12% 36% 11% 36%;
-      box-sizing: border-box;
-      transform-origin: top center;
-      transition: transform 0.4s ease, opacity 0.4s ease;
-      cursor: pointer;
-    }
-    .tab-card.front {
-      position: absolute; top: 0; left: 0;
-      transform: scale(1) translateY(0);
-      opacity: 1;
-      z-index: 2;
-    }
-    .tab-card.back {
-      position: absolute; /* backはabsoluteのまま */
-      left: 0;
-      transform: scale(0.86) translateX(46%) translateY(14px);
-      opacity: 0.65;
-      z-index: 1;
-    }
-    .card-title { display: none; }
-    .tab-card label { display: block; font-size: clamp(10px,1.6vw,13px); margin-bottom: 3px; color: #444; }
-    .tab-card input {
-      width: 100%; box-sizing: border-box;
-      padding: clamp(3px,0.8vw,6px) 8px;
-      font-size: clamp(10px,1.6vw,13px);
-      border: 1px solid #ddd; border-radius: 20px;
-      margin-bottom: clamp(2px,0.5vw,5px);
-      background: rgba(255,255,255,0.5);
-      pointer-events: none;
-    }
-    .tab-card.front input {
-      background: rgba(255,255,255,0.95);
-      border-color: #bbb;
-      pointer-events: auto;
-    }
-    .card-tab-label { display: none; }
-
-    #login-btn-wrap {
-      text-align: center;
-      margin-top: 16px;
-      position: relative;
-      z-index: 5;
-    }
-    button.main-btn {
-      display: inline-block;
-      min-width: 200px;
-      padding: 14px 40px;
-      font-size: 16px;
-      font-weight: bold;
-      letter-spacing: 0.08em;
-      color: #fff;
-      background: linear-gradient(135deg, #ff80b0, #ffb347);
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
-      transition: transform 0.15s, box-shadow 0.15s;
-      margin-top: 8px;
-    }
-    button.main-btn:hover { transform: scale(1.04); box-shadow: 0 6px 20px rgba(255,128,176,0.6); }
-    button.main-btn:active { transform: scale(0.97); }
-    button#btn-login {
-      background: linear-gradient(135deg, #80c8ff, #b47fff);
-      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
-    }
-    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
-    .err { color: #c00; }
-    .ok  { color: #080; }
-
-    /* ===== ガチャ画面 ===== */
+        /* ===== ガチャ画面 ===== */
     #gacha-wrap {
       display: grid;
       grid-template-columns: 200px 1fr 200px;
