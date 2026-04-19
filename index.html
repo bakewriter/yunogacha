@@ -655,7 +655,10 @@
   <audio id="gacha-sound" preload="auto"></audio>
 </div>
 
+
+
 <script>
+
 /* ===== ガチャ画面 JS ===== */
 
 function updateGachaUI() {
@@ -829,8 +832,8 @@ function showExchange() {
   s.style.display = (s.style.display === 'block') ? 'none' : 'block';
   if (s.style.display === 'block') { loadItems(); s.scrollIntoView({behavior:'smooth'}); }
 }
-</script>
-<script>
+
+
 var GAS = 'https://script.google.com/macros/s/AKfycbz35sBanr-F1legsx3hke5cM21Q0GzwGLxl_J6XxaF7oOG-ETXJsRVjheiipsapD7ToHA/exec';
 var user = null;
 var currentUser = null;
@@ -968,7 +971,11 @@ function switchTab(name) {
 }
 
 function msg(id,text,cls){ var el=document.getElementById(id); if(!el)return; el.textContent=text; el.className='msg '+(cls||''); }
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function esc(s) {
+  var d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
+}
 
 function doRegister() {
   var email=document.getElementById('reg-email').value.trim();
@@ -1035,7 +1042,7 @@ function loadItems() {
         + '<td>' + esc(r.description) + '</td>'
         + '<td>' + have + '個</td>'
         + '<td>' + r.cost_count + '個</td>'
-        + '<td><button class="exchange-btn"' + (ok ? '' : ' disabled') + ' onclick="doExchangeByItem('' + esc(r.recipe_id) + '','' + esc(r.description) + '')">交換</button></td>'
+        + '<td><button class="exchange-btn"' + (ok ? '' : ' disabled') + ' onclick="doExchangeByItem(\'' + esc(r.recipe_id) + '\',\'' + esc(r.description) + '\')">交換</button></td>'
         + '</tr>';
     });
     el.innerHTML = html + '</tbody></table>';
@@ -1080,6 +1087,7 @@ function doExchange(itemId,itemName,cost) {
     } else { msg('msg-exchange',data.message,'err'); }
   });
 }
+
 </script>
 </body>
 </html>
