@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ガチャシステム</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+    #screen-login {
+      max-width: 680px;
+      margin: 20px auto;
+      padding: 12px 16px;
+      box-sizing: border-box;
+      overflow: visible;
+    }
+    #screen-gacha {
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ===== ガチャ画面 ===== */
+    #gacha-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 20px 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #gacha-header h1 { font-size: 18px; margin: 0; }
+    #gacha-user-info { font-size: 13px; color: #666; }
+    .logout-btn {
+      background: #888; color: #fff; border: none;
+      font-size: 12px; padding: 6px 16px; cursor: pointer; border-radius: 6px;
+    }
+
+    /* 3カラムグリッド */
+    #gacha-wrap {
+      display: grid !important;
+      grid-template-columns: 220px 1fr 260px !important;
+      gap: 16px;
+      padding: 8px 20px 20px;
+      align-items: start;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    @media (max-width: 768px) {
+      #gacha-wrap { grid-template-columns: 1fr !important; }
+    }
+
+    /* ===== 左カラム ===== */
+    .gacha-left { display: flex; flex-direction: column; gap: 14px; }
+
+    #trade-wrap img {
+      width: 100%;
+      object-fit: contain;
+      cursor: pointer;
+    }
+
+    /* URボックス（画像のみ） */
+    #ur-wrap { width: 100%; }
+    #ur-frame-img {
+      width: 100%;
+      object-fit: contain;
+    }
+
+    /* SSRランプは中央カラム内に移動済み */
+
+    /* ===== 中央カラム ===== */
+    .gacha-center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+    /* 演出エリア＋SSRラップ */
+    #gacha-stage-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    /* 演出エリア（16:9） */
+    #gacha-stage {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    #gacha-idle { font-size: clamp(14px,2vw,20px); color: #ccc; font-weight: bold; }
+    #gacha-result-display {
+      display: none; flex-direction: column;
+      align-items: center; gap: 6px;
+      padding: 12px; width: 100%; overflow-y: auto;
+    }
+    .result-card {
+      padding: 7px 16px; border-radius: 20px;
+      font-size: 14px; font-weight: bold;
+      color: #fff; width: 88%; text-align: center;
+    }
+    .result-card.SSR { background: linear-gradient(90deg,#f9c,#f6a); box-shadow: 0 0 12px #f9c; }
+    .result-card.SR  { background: linear-gradient(90deg,#c9f,#a6f); }
+    .result-card.R   { background: linear-gradient(90deg,#9cf,#6af); }
+    .result-card.N   { background: #ccc; color: #555; }
+
+    /* SSRランプ：左カラム下部 */
+    #ssr-wrap { width: 100%; }
+    #ssr-wrap img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      opacity: 0.45;
+      transition: opacity 0.3s, filter 0.3s;
+    }
+    #ssr-wrap img.lit { opacity: 1; filter: drop-shadow(0 0 14px #f9c); }
+
+    /* ガチャボタン横並び */
+    #gacha-btns {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: nowrap;
+      width: 100%;
+    }
+    .gacha-btn {
+      background: none; border: none; padding: 0;
+      cursor: pointer; transition: transform 0.1s;
+      flex: 0 0 auto;
+    }
+    .gacha-btn:active { transform: scale(0.95); }
+    .gacha-btn:disabled { opacity: 0.4; cursor: default; }
+    .gacha-btn img {
+      width: clamp(80px, 10vw, 130px);
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    /* ===== 右カラム ===== */
+    .gacha-right { display: flex; flex-direction: column; gap: 14px; }
+
+    /* 当選履歴 */
+    #history-wrap {
+      position: relative;
+    }
+    #history-frame-img {
+      width: 100%;
+      height: auto; /* アスペクト比を維持 */
+      display: block;
+      object-fit: contain;
+    }
+    #history-box {
+      position: absolute;
+      top: 17%; left: 12.5%; right: 12.3%; bottom: 14%;
+      z-index: 1;
+      background: transparent;
+      border: none;
+      padding: 4px 6px;
+      overflow-y: auto;
+    }
+    .box-title {
+      font-size: 13px; font-weight: bold;
+      color: #ff80b0; text-align: center; margin-bottom: 4px;
+    }
+    #history-items { font-size: 12px; min-height: 60px; }
+    .h-item { padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; font-weight: bold; }
+    .h-item.SSR { background:#fff0f6; color:#e05; }
+    .h-item.SR  { background:#f0e0ff; color:#808; }
+    .h-item.R   { background:#e0f0ff; color:#048; }
+    .h-item.N   { background:#f5f5f5; color:#888; }
+
+    /* チケット残数 */
+    #ticket-wrap {
+      position: relative;
+    }
+    #ticket-frame-img {
+      width: 100%;
+      height: auto; /* アスペクト比を維持 */
+      display: block;
+      object-fit: contain;
+    }
+    #ticket-box {
+      position: absolute;
+      top: 20.6%; left: 40%; right: 12.5%; bottom: 14.8%;
+      z-index: 1;
+      background: transparent;
+      border: none;
+      padding: 0 8px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px;
+    }
+    #ticket-icon-wrap {
+      width: 60px; height: 60px; flex-shrink: 0;
+      background: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    #ticket-icon-wrap img {
+      width: 46px; height: 46px;
+      object-fit: contain;
+    }
+    .tk-label { font-size: 11px; color: #fff; font-weight: bold; letter-spacing: 0.05em; }
+    .tk-count-wrap { display: flex; align-items: baseline; gap: 2px; }
+    .tk-count { font-size: 30px; color: #fff; font-weight: bold; line-height: 1; }
+    .tk-unit  { font-size: 13px; color: #fff; }
+
+    /* ネコキャラ */
+    #neko-wrap img {
+      width: 100%;
+      object-fit: contain;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    #neko-wrap img:hover { transform: scale(1.04); }
+
+    /* SSRオーバーレイ */
+    #ssr-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(255,180,220,0); z-index: 100; pointer-events: none;
+    }
+    #ssr-overlay.flash { animation: ssrFlash 0.6s ease-out forwards; }
+    @keyframes ssrFlash {
+      0%  { background: rgba(255,180,220,0); }
+      30% { background: rgba(255,180,220,0.7); }
+      100%{ background: rgba(255,180,220,0); }
+    }
+
+    /* シリアル・交換 */
+    #serial-section, #exchange-section {
+      display: none; padding: 0 20px 16px;
+    }
+    #serial-section h2, #exchange-section h2 { font-size: 15px; margin-bottom: 8px; }
+    #serial-input {
+      padding: 6px 12px; border: 1px solid #ccc;
+      border-radius: 20px; font-size: 13px; width: 220px;
+    }
+    button.add-btn {
+      background: #ff80b0; color: #fff; border: none;
+      padding: 6px 16px; border-radius: 20px; cursor: pointer;
+      font-size: 13px; margin-left: 8px;
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+    th, td { border: 1px solid #eee; padding: 6px 10px; }
+    th { background: #fef0f6; }
+    button.exchange-btn {
+      background: #ff80b0; color: #fff; border: none;
+      font-size: 12px; padding: 4px 12px; cursor: pointer; border-radius: 12px;
+    }
+
+        /* ===== ログイン画面 ===== */
+    .tab-btns {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      position: absolute;
+      top: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      white-space: nowrap;
+    }
+    .tab-btn-item {
+      padding: clamp(4px,1vw,6px) clamp(10px,2.5vw,18px);
+      font-size: clamp(11px,1.8vw,13px);
+      font-weight: bold;
+      background: #ccc;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: opacity 0.25s, background 0.25s;
+      letter-spacing: 0.05em;
+    }
+    .tab-btn-item.active { background: #444; opacity: 1; }
+
+    .card-stage {
+      position: relative;
+      margin-top: 44px;
+      overflow: visible;
+      width: 140%;
+      margin-left: -20%;
+      /* frontカードの高さを継承するためmin-heightを設定 */
+    }
+    .tab-card {
+      position: relative; top: 0; left: 0;
+      width: calc(100% - 12px);
+      aspect-ratio: 1920 / 1080;
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-color: rgba(200,200,200,0.15); /* フレーム未ロード時の仮背景 */
+      border: none;
+      padding: 12% 36% 11% 36%;
+      box-sizing: border-box;
+      transform-origin: top center;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      cursor: pointer;
+    }
+    .tab-card.front {
+      position: relative; /* 高さをstageに伝える */
+      left: 0;
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      z-index: 2;
+    }
+    .tab-card.back {
+      position: absolute; /* backはabsoluteのまま */
+      left: 0;
+      transform: scale(0.86) translateX(46%) translateY(14px);
+      opacity: 0.65;
+      z-index: 1;
+    }
+    .card-title { display: none; }
+    .tab-card label { display: block; font-size: clamp(10px,1.6vw,13px); margin-bottom: 3px; color: #444; }
+    .tab-card input {
+      width: 100%; box-sizing: border-box;
+      padding: clamp(3px,0.8vw,6px) 8px;
+      font-size: clamp(10px,1.6vw,13px);
+      border: 1px solid #ddd; border-radius: 20px;
+      margin-bottom: clamp(2px,0.5vw,5px);
+      background: rgba(255,255,255,0.5);
+      pointer-events: none;
+    }
+    .tab-card.front input {
+      background: rgba(255,255,255,0.95);
+      border-color: #bbb;
+      pointer-events: auto;
+    }
+    .card-tab-label { display: none; }
+
+    #login-btn-wrap {
+      text-align: center;
+      margin-top: 16px;
+      position: relative;
+      z-index: 5;
+    }
+    button.main-btn {
+      display: inline-block;
+      min-width: 200px;
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      color: #fff;
+      background: linear-gradient(135deg, #ff80b0, #ffb347);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin-top: 8px;
+    }
+    button.main-btn:hover { transform: scale(1.04); box-shadow: 0 6px 20px rgba(255,128,176,0.6); }
+    button.main-btn:active { transform: scale(0.97); }
+    button#btn-login {
+      background: linear-gradient(135deg, #80c8ff, #b47fff);
+      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
+    }
+    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
+    .err { color: #c00; }
+    .ok  { color: #080; }
+
+    /* ===== ガチャ画面 ===== */
+    #gacha-wrap {
+      display: grid;
+      grid-template-columns: 200px 1fr 200px;
+      gap: 12px;
+      align-items: start;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 8px;
+    }
+    @media (max-width: 800px) {
+      #gacha-wrap { grid-template-columns: 1fr; }
+    }
+    .gacha-left, .gacha-right { display: flex; flex-direction: column; gap: 10px; }
+    .gacha-center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+    #gacha-stage-old-removed {
+      display: none;
+      overflow: hidden; position: relative;
+    }
+    #gacha-idle { font-size: clamp(14px,2.5vw,20px); color: #ccc; font-weight: bold; }
+    #gacha-result-display {
+      display: none; flex-direction: column;
+      align-items: center; gap: 6px; padding: 12px; width: 100%;
+    }
+    .result-card {
+      padding: 6px 14px; border-radius: 20px;
+      font-size: clamp(12px,1.8vw,15px); font-weight: bold;
+      color: #fff; width: 90%; text-align: center;
+    }
+    .result-card.SSR { background: linear-gradient(90deg,#f9c,#f6a); box-shadow: 0 0 12px #f9c; }
+    .result-card.SR  { background: linear-gradient(90deg,#c9f,#a6f); }
+    .result-card.R   { background: linear-gradient(90deg,#9cf,#6af); }
+    .result-card.N   { background: #ccc; color: #555; }
+
+    #gacha-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .gacha-btn {
+      cursor: pointer; border: none; background: none; padding: 0;
+      transition: transform 0.1s;
+    }
+    .gacha-btn:active { transform: scale(0.95); }
+    .gacha-btn:disabled { opacity: 0.4; cursor: default; }
+    .gacha-btn img { width: clamp(90px,20vw,150px); display: block; }
+
+    #history-box .box-title { font-size: 13px; font-weight: bold; color: #ff80b0; margin-bottom: 8px; text-align: center; }
+    #history-items { font-size: 12px; color: #666; min-height: 60px; }
+    .h-item { padding: 3px 6px; margin-bottom: 3px; border-radius: 6px; font-weight: bold; }
+    .h-item.SSR { background:#fff0f6; color:#e05; }
+    .h-item.SR  { background:#f0e0ff; color:#808; }
+    .h-item.R   { background:#e0f0ff; color:#048; }
+    .h-item.N   { background:#f5f5f5; color:#888; }
+
+
+    .tk-label { font-size: 12px; color: #fff; font-weight: bold; }
+    .tk-count { font-size: 28px; color: #fff; font-weight: bold; line-height: 1; }
+    .tk-unit  { font-size: 13px; color: #fff; }
+
+    #ur-box {
+      background: linear-gradient(135deg,#ffb6d9,#ff80b0);
+      border-radius: 12px; padding: 10px 12px;
+      text-align: center; color: #fff; font-weight: bold;
+    }
+    #ur-box .ur-crown { font-size: 22px; }
+    #ur-box .ur-title { font-size: 12px; margin: 4px 0; }
+    #ur-box .ur-name {
+      font-size: 16px; background: #fff; color: #ff80b0;
+      border-radius: 8px; padding: 5px 8px; margin-top: 6px;
+    }
+
+    #ssr-lamp { width: 100%; opacity: 0.4; transition: opacity 0.3s, filter 0.3s; }
+    #ssr-lamp.lit { opacity: 1; filter: drop-shadow(0 0 12px #f9c); }
+
+    #trade-img { width: 100%; cursor: pointer; }
+    #neko-img  { width: 100%; cursor: pointer; transition: transform 0.15s; }
+    #neko-img:hover { transform: scale(1.04); }
+
+    #ssr-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(255,180,220,0); z-index: 100; pointer-events: none;
+    }
+    #ssr-overlay.flash { animation: ssrFlash 0.6s ease-out forwards; }
+    @keyframes ssrFlash {
+      0%  { background: rgba(255,180,220,0); }
+      30% { background: rgba(255,180,220,0.7); }
+      100%{ background: rgba(255,180,220,0); }
+    }
+
+    #gacha-header {
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: 1100px; margin: 0 auto 8px; padding: 0 8px;
+    }
+    #gacha-header h1 { font-size: 18px; margin: 0; }
+    button.logout-btn {
+      background: #888; color: #fff; border: none;
+      font-size: 12px; padding: 5px 12px; cursor: pointer; border-radius: 4px;
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 6px; }
+    th, td { border: 1px solid #eee; padding: 5px 8px; text-align: left; }
+    th { background: #fef0f6; }
+    button.exchange-btn {
+      background: #ff80b0; color: #fff; border: none;
+      font-size: 12px; padding: 4px 10px; cursor: pointer; border-radius: 12px;
+    }
+    input.serial-input {
+      width: 240px; padding: 6px 10px;
+      border: 1px solid #ccc; border-radius: 20px; font-size: 13px;
+    }
+    button.add-btn {
+      background: #ff80b0; color: #fff; border: none;
+      padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px;
+    }
+    @media (max-width: 400px) {
+      h2 { font-size: 14px; }
+      .gacha-btn img { width: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== ローディング画面 ===== -->
+<div id="screen-loading" style="
+  position: fixed; inset: 0; z-index: 9999;
+  background: #fff;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px;
+">
+  <div style="font-size:28px;">🐱</div>
+  <div style="
+    width: 200px; height: 6px;
+    background: #f0d0e0; border-radius: 10px; overflow: hidden;
+  ">
+    <div id="load-bar" style="
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #ff80b0, #ffb347);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    "></div>
+  </div>
+  <div id="load-text" style="font-size:13px; color:#aaa;">素材を読み込んでいます...</div>
+</div>
+
+<!-- ===== ログイン画面 ===== -->
+<div id="screen-login" class="screen active">
+  <h1>ガチャシステム</h1>
+
+  <div class="card-stage" id="card-stage">
+    <div class="tab-btns">
+      <button class="tab-btn-item active" id="tbtn-new"   onclick="switchTab('new')">初回登録</button>
+      <button class="tab-btn-item"        id="tbtn-exist" onclick="switchTab('exist')">2回目以降</button>
+    </div>
+
+    <!-- 奥カード：2回目以降 -->
+    <div class="tab-card back" id="card-exist" onclick="switchTab('exist')">
+      <div class="card-title">ログイン</div>
+      <label>メールアドレス<input type="email" id="login-email" placeholder="登録時のメールアドレス"></label>
+      <label>ユーザー名<input type="text" id="login-name" placeholder="登録時のユーザー名"></label>
+    </div>
+
+    <!-- 手前カード：初回登録 -->
+    <div class="tab-card front" id="card-new" onclick="switchTab('new')">
+      <div class="card-title">初回登録</div>
+      <label>メールアドレス<input type="email" id="reg-email" placeholder="example@email.com"></label>
+      <label>ユーザー名<input type="text" id="reg-name" placeholder="お好きな名前"></label>
+      <label>シリアルコード（BOOTHの注文番号）<input type="text" id="reg-serial" placeholder="BOOTH-XXXX-XXXX"></label>
+    </div>
+  </div>
+
+  <div id="login-btn-wrap">
+    <button id="btn-reg"   class="main-btn" onclick="doRegister()">登録してはじめる</button>
+    <button id="btn-login" class="main-btn" style="display:none;" onclick="doLogin()">ログイン</button>
+  </div>
+  <div id="msg-login" class="msg"></div>
+</div>
+
+<!-- ===== ガチャ画面 ===== -->
+<div id="screen-gacha" class="screen">
+  <div id="ssr-overlay"></div>
+
+  <!-- ヘッダー -->
+  <div id="gacha-header">
+    <h1>ガチャシステム</h1>
+    <div id="gacha-user-info"></div>
+    <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+  </div>
+
+  <!-- メインレイアウト：3カラム -->
+  <div id="gacha-wrap">
+
+    <!-- ===== 左カラム ===== -->
+    <div class="gacha-left">
+      <!-- 交換所ボタン -->
+      <div id="trade-wrap">
+        <img id="trade-img" src="" alt="交換所" onclick="showExchange()">
+      </div>
+
+      <!-- SSRランプ（交換所の下） -->
+      <div id="ssr-wrap">
+        <img id="ssr-lamp" src="" alt="SSR">
+      </div>
+
+      <!-- URを出したユーザー（SSRの下） -->
+      <div id="ur-wrap">
+        <img id="ur-frame-img" src="" alt="" style="width:100%;object-fit:contain;display:block;">
+      </div>
+    </div>
+
+    <!-- ===== 中央カラム ===== -->
+    <div class="gacha-center">
+      <!-- 演出エリア -->
+      <div id="gacha-stage-wrap" style="position:relative;width:100%;">
+      <!-- 演出エリア（白いカード） -->
+      <div id="gacha-stage">
+        <div id="gacha-idle">ガチャを引いてね！</div>
+        <!-- 動画演出エリア -->
+        <video id="gacha-video"
+          style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
+          playsinline
+          preload="none">
+        </video>
+        <div id="gacha-result-display"></div>
+      </div>
+      </div><!-- /gacha-stage-wrap -->
+
+      <!-- ガチャボタン（横並び・チケット枚数で表示切替） -->
+      <div id="gacha-btns">
+        <button class="gacha-btn" id="gbtn-1"  onclick="doRoll(1)">
+          <img id="img-btn1"  src="" alt="1回引く">
+        </button>
+        <button class="gacha-btn" id="gbtn-5"  onclick="doRoll(5)">
+          <img id="img-btn5"  src="" alt="5連引く">
+        </button>
+        <button class="gacha-btn" id="gbtn-10" onclick="doRoll(10)">
+          <img id="img-btn10" src="" alt="11連引く">
+        </button>
+      </div>
+      <div id="msg-gacha" class="msg"></div>
+    </div>
+
+    <!-- ===== 右カラム ===== -->
+    <div class="gacha-right">
+      <!-- 当選履歴 -->
+      <div id="history-wrap">
+        <!-- フレーム画像が自然なサイズで表示される -->
+        <img id="history-frame-img" src="" alt="">
+        <!-- テキストをフレームの上に重ねる -->
+        <div id="history-box">
+          <div id="history-items"><span style="color:#ccc;font-size:12px;">まだ引いていません</span></div>
+        </div>
+      </div>
+
+      <!-- チケット残数 -->
+      <div id="ticket-box">
+        
+        <div id="ticket-text">
+          <div class="tk-label">残りチケット</div>
+          <div class="tk-count-wrap">
+            <span class="tk-count" id="ticket-count">-</span>
+            <span class="tk-unit">枚</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ネコキャラ（チケット追加） -->
+      <div id="neko-wrap">
+        <img id="neko-img" src="" alt="チケット追加" onclick="showAddSerial()">
+      </div>
+    </div>
+
+  </div><!-- /gacha-wrap -->
+
+  <!-- シリアル追加（折りたたみ） -->
+  <div id="serial-section">
+    <h2>シリアルコード追加</h2>
+    <input type="text" id="serial-input" placeholder="BOOTHの注文番号">
+    <button class="add-btn" onclick="doAddSerial()">追加する</button>
+    <div id="msg-serial" class="msg"></div>
+  </div>
+
+  <!-- 交換所（折りたたみ） -->
+  <div id="exchange-section">
+    <h2>アイテム交換</h2>
+    <div id="item-list"></div>
+    <div id="msg-exchange" class="msg"></div>
+  </div>
+
+  <audio id="gacha-sound" preload="auto"></audio>
+</div>
+
+<script>
+/* ===== ガチャ画面 JS ===== */
+
+function updateGachaUI() {
+  if (!currentUser) return;
+  document.getElementById('gacha-user-info').textContent = 'ログイン中: ' + currentUser.username;
+  document.getElementById('ticket-count').textContent = currentUser.tickets;
+  updateGachaBtns();
+}
+
+function updateGachaBtns() {
+  var t = currentUser ? Number(currentUser.tickets) : 0;
+  var b1  = document.getElementById('gbtn-1');
+  var b5  = document.getElementById('gbtn-5');
+  var b10 = document.getElementById('gbtn-10');
+  if (!b1) return;
+  b1.style.display  = t >= 1  ? 'inline-block' : 'none';
+  b5.style.display  = t >= 5  ? 'inline-block' : 'none';  // 5枚以上で表示
+  b10.style.display = t >= 10 ? 'inline-block' : 'none';  // 10枚以上で表示
+}
+
+function applyGachaAssets() {
+  function setImg(id, src) {
+    var e = document.getElementById(id);
+    if (e && src) e.src = src;
+  }
+  setImg('img-btn1',     ASSETS.btn1);
+  setImg('img-btn5',     ASSETS.btn5);
+  setImg('img-btn10',    ASSETS.btn11);
+  setImg('trade-img',    ASSETS.trade);
+  setImg('neko-img',     ASSETS.neko);
+  setImg('ssr-lamp',     ASSETS.ssr_off);
+  setImg('ur-frame-img', ASSETS.ur_frame);
+  setImg('ticket-icon',  ASSETS.neko);
+  var snd = document.getElementById('gacha-sound');
+  if (snd && ASSETS.audio) snd.src = ASSETS.audio;
+  // 当選履歴フレーム（img要素として正しいアスペクト比で表示）
+  if (ASSETS.history_frame) {
+    var hImg = document.getElementById('history-frame-img');
+    if (hImg) { hImg.src = ASSETS.history_frame; hImg.style.display = 'block'; }
+  }
+  // チケット保有枚数フレーム
+  if (ASSETS.ticket_frame) {
+    var tImg = document.getElementById('ticket-frame-img');
+    if (tImg) { tImg.src = ASSETS.ticket_frame; tImg.style.display = 'block'; }
+  }
+}
+
+function doRoll(count) {
+  ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.disabled=true;
+  });
+  msg('msg-gacha','抽選中...','');
+  // 効果音はSSR演出時のみ再生（showGachaResults内）
+
+  api({action:'rollGacha', user_id:currentUser.user_id, count:count}, function(err,data){
+    ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){
+      var e=document.getElementById(id); if(e) e.disabled=false;
+    });
+    if (err) { msg('msg-gacha',err,'err'); return; }
+    if (data.success) {
+      currentUser.tickets = data.remaining_tickets;
+      sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
+      document.getElementById('ticket-count').textContent = data.remaining_tickets;
+      updateGachaBtns();
+      showGachaResults(data.results);
+      msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
+    } else { msg('msg-gacha', data.message,'err'); }
+  });
+}
+
+function showGachaResults(results) {
+  var idle = document.getElementById('gacha-idle');
+  var disp = document.getElementById('gacha-result-display');
+  var lamp = document.getElementById('ssr-lamp');
+
+  // SSRが含まれているか先に判定
+  var hasSSR = results.some(function(item){
+    return item.rarity === 'SSR' || item.rarity === 'UR';
+  });
+
+  if (hasSSR) {
+    // SSRランプ点灯 → フラッシュ → 2秒後に結果表示
+    if (ASSETS.ssr_on && lamp) { lamp.src = ASSETS.ssr_on; lamp.classList.add('lit'); }
+    // SSR効果音を再生
+    var snd = document.getElementById('gacha-sound');
+    if (snd && snd.src) { snd.currentTime = 0; snd.play().catch(function(){}); }
+    var ov = document.getElementById('ssr-overlay');
+    if (ov) {
+      ov.style.display = 'block';
+      ov.classList.add('flash');
+      setTimeout(function(){ ov.classList.remove('flash'); ov.style.display = 'none'; }, 700);
+    }
+    // 2秒後に結果を表示
+    setTimeout(function(){
+      renderResults(results, disp, idle);
+      scheduleSSROff();
+      if (document.getElementById('ur-name-text'))
+        document.getElementById('ur-name-text').textContent = currentUser.username + ' さん';
+    }, 2000);
+  } else {
+    // SSRなし：即座に結果表示
+    if (ASSETS.ssr_off && lamp) { lamp.src = ASSETS.ssr_off; lamp.classList.remove('lit'); }
+    renderResults(results, disp, idle);
+  }
+}
+
+// ガチャ動画を再生する（動画ファイルのURLを設定してから呼ぶ）
+function playGachaVideo(videoUrl, onEnded) {
+  var video = document.getElementById('gacha-video');
+  var idle  = document.getElementById('gacha-idle');
+  if (!video || !videoUrl) { if (onEnded) onEnded(); return; }
+  video.src = videoUrl;
+  video.style.display = 'block';
+  idle.style.display  = 'none';
+  video.play().catch(function(e) {
+    console.warn('video play failed:', e);
+    video.style.display = 'none';
+    if (onEnded) onEnded();
+  });
+  video.onended = function() {
+    video.style.display = 'none';
+    video.src = '';
+    if (onEnded) onEnded();
+  };
+}
+
+function renderResults(results, disp, idle) {
+  idle.style.display = 'none';
+  disp.style.display = 'flex';
+  disp.innerHTML = '';
+  results.forEach(function(item){
+    var d = document.createElement('div');
+    d.className = 'result-card ' + item.rarity;
+    d.textContent = '【' + item.rarity + '】' + item.item_name;
+    disp.appendChild(d);
+    addHistory(item);
+  });
+}
+
+// SSRランプ点灯後3秒で消灯
+function scheduleSSROff() {
+  var lamp = document.getElementById('ssr-lamp');
+  if (!lamp) return;
+  setTimeout(function() {
+    lamp.classList.remove('lit');
+    if (ASSETS.ssr_off) lamp.src = ASSETS.ssr_off;
+  }, 3000);
+}
+
+function addHistory(item) {
+  var hist=document.getElementById('history-items');
+  var placeholder=hist.querySelector('span');
+  if (placeholder) hist.innerHTML='';
+  var hi=document.createElement('div');
+  hi.className='h-item '+item.rarity;
+  hi.textContent='【'+item.rarity+'】'+item.item_name;
+  hist.insertBefore(hi,hist.firstChild);
+  while (hist.children.length>10) hist.removeChild(hist.lastChild);
+}
+
+function showAddSerial() {
+  var s=document.getElementById('serial-section');
+  s.style.display = s.style.display==='none'?'block':'none';
+  if (s.style.display==='block') s.scrollIntoView({behavior:'smooth'});
+}
+
+function showExchange() {
+  var s=document.getElementById('exchange-section');
+  s.style.display = s.style.display==='none'?'block':'none';
+  if (s.style.display==='block') { loadItems(); s.scrollIntoView({behavior:'smooth'}); }
+}
+</script>
+<script>
+var GAS = 'https://script.google.com/macros/s/AKfycbz35sBanr-F1legsx3hke5cM21Q0GzwGLxl_J6XxaF7oOG-ETXJsRVjheiipsapD7ToHA/exec';
+var user = null;
+var currentUser = null;
+var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off:'', frame:'', ur_frame:'', audio:'' };
+// ガチャ演出動画のURL（Driveの共有URL or 外部URL）
+// 例: 'https://drive.google.com/file/d/YOUR_FILE_ID/preview'
+var GACHA_VIDEO_URL = '';
+var ASSET_KEYS = ['btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','frame','ur_frame','history_frame','ticket_frame'];
+
+function api(payload, cb) {
+  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
+  fetch(url, { redirect: 'follow' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) { cb(null, data); })
+    .catch(function(e) { cb('通信エラー: ' + e.message); });
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('screen-'+name).classList.add('active');
+}
+
+function setLoadProgress(pct, text) {
+  var bar=document.getElementById('load-bar'), txt=document.getElementById('load-text');
+  if (bar) bar.style.width=pct+'%';
+  if (txt&&text) txt.textContent=text;
+}
+
+function hideLoading() {
+  var el=document.getElementById('screen-loading');
+  if (!el) return;
+  el.style.transition='opacity 0.4s'; el.style.opacity='0';
+  setTimeout(function(){ el.style.display='none'; },400);
+}
+
+function applyFrame() {
+  if (!ASSETS.frame) return;
+  document.querySelectorAll('.tab-card').forEach(function(c){
+    c.style.backgroundImage="url('"+ASSETS.frame+"')";
+    c.style.backgroundSize='100% 100%';
+    c.style.backgroundRepeat='no-repeat';
+  });
+}
+
+function onAssetsLoaded(cb) {
+  requestAnimationFrame(function(){
+    applyFrame();
+    positionLabels();
+    hideLoading();
+    if (cb) cb();
+  });
+}
+
+// 素材キー一覧
+var ASSET_KEYS = ['btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','frame','ur_frame','history_frame','ticket_frame'];
+
+function loadAssets(cb) {
+  var keys = ASSET_KEYS.slice();
+  var total = keys.length;
+  var loaded = 0;
+
+  function loadNext() {
+    if (keys.length === 0) {
+      setLoadProgress(100, '完了！');
+      setTimeout(function(){ onAssetsLoaded(cb); }, 300);
+      return;
+    }
+    var key = keys.shift();
+    setLoadProgress(Math.round((loaded / total) * 90) + 5, key + ' 読込中...');
+
+    var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: key }));
+    fetch(url, { redirect: 'follow' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.success && data.dataUrl) {
+          ASSETS[data.key] = data.dataUrl;
+        } else {
+          console.warn('asset failed:', key, data ? data.message : 'null');
+        }
+        loaded++;
+        loadNext();
+      })
+      .catch(function(e) {
+        console.warn('asset fetch failed:', key, e);
+        loaded++;
+        loadNext();
+      });
+  }
+
+  loadNext();
+}
+
+function positionLabels() {
+  var front=document.querySelector('.tab-card.front');
+  var stage=document.getElementById('card-stage');
+  if (front&&stage) stage.style.height=front.offsetHeight+'px';
+}
+window.addEventListener('resize', positionLabels);
+
+window.onload = function() {
+  positionLabels();
+  setLoadProgress(5,'接続中...');
+  loadAssets(function(){
+    var saved=sessionStorage.getItem('gachaUser');
+    if (saved){ user=JSON.parse(saved); currentUser=user; gotoGacha(); }
+  });
+};
+
+function gotoGacha() {
+  showScreen('gacha');
+  applyFrame();
+  updateGachaUI();
+  applyGachaAssets();
+  loadItems();
+}
+
+function doLogout() {
+  sessionStorage.removeItem('gachaUser');
+  user=null; currentUser=null;
+  showScreen('login');
+}
+
+function switchTab(name) {
+  var inEl=document.getElementById(name==='new'?'card-new':'card-exist');
+  var outEl=document.getElementById(name==='new'?'card-exist':'card-new');
+  if (!inEl||!outEl||inEl.classList.contains('front')) return;
+  inEl.className='tab-card front'; outEl.className='tab-card back';
+  var tN=document.getElementById('tbtn-new'), tE=document.getElementById('tbtn-exist');
+  if (tN&&tE){ tN.className=name==='new'?'tab-btn-item active':'tab-btn-item'; tE.className=name==='exist'?'tab-btn-item active':'tab-btn-item'; }
+  var bR=document.getElementById('btn-reg'), bL=document.getElementById('btn-login');
+  if (bR&&bL){ bR.style.display=name==='new'?'inline-block':'none'; bL.style.display=name==='exist'?'inline-block':'none'; }
+  msg('msg-login','','');
+}
+
+function msg(id,text,cls){ var el=document.getElementById(id); if(!el)return; el.textContent=text; el.className='msg '+(cls||''); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function doRegister() {
+  var email=document.getElementById('reg-email').value.trim();
+  var name=document.getElementById('reg-name').value.trim();
+  var serial=document.getElementById('reg-serial').value.trim();
+  if (!email||!name||!serial){ msg('msg-login','全項目を入力してください','err'); return; }
+  var btn=document.getElementById('btn-reg'); btn.disabled=true; msg('msg-login','登録中...','');
+  api({action:'loginUser',email:email,username:name,serial:serial},function(err,data){
+    btn.disabled=false;
+    if (err){ msg('msg-login',err,'err'); return; }
+    if (data.success){ user=data.user; currentUser=user; sessionStorage.setItem('gachaUser',JSON.stringify(user)); gotoGacha(); }
+    else { msg('msg-login',data.message,'err'); }
+  });
+}
+
+function doLogin() {
+  var email=document.getElementById('login-email').value.trim();
+  var name=document.getElementById('login-name').value.trim();
+  if (!email||!name){ msg('msg-login','メールアドレスとユーザー名を入力してください','err'); return; }
+  var btn=document.getElementById('btn-login'); btn.disabled=true; msg('msg-login','ログイン中...','');
+  api({action:'loginUser',email:email,username:name},function(err,data){
+    btn.disabled=false;
+    if (err){ msg('msg-login',err,'err'); return; }
+    if (data.success){ user=data.user; currentUser=user; sessionStorage.setItem('gachaUser',JSON.stringify(user)); gotoGacha(); }
+    else { msg('msg-login',data.message,'err'); }
+  });
+}
+
+function doAddSerial() {
+  var serial=document.getElementById('serial-input').value.trim();
+  if (!serial){ msg('msg-serial','シリアルコードを入力してください','err'); return; }
+  msg('msg-serial','確認中...','');
+  api({action:'addSerial',user_id:currentUser.user_id,serial:serial},function(err,data){
+    if (err){ msg('msg-serial',err,'err'); return; }
+    if (data.success){
+      currentUser.tickets=data.new_ticket_count;
+      sessionStorage.setItem('gachaUser',JSON.stringify(currentUser));
+      document.getElementById('ticket-count').textContent=data.new_ticket_count;
+      updateGachaBtns();
+      document.getElementById('serial-input').value='';
+      msg('msg-serial',data.message,'ok');
+    } else { msg('msg-serial',data.message,'err'); }
+  });
+}
+
+function loadItems() {
+  var el=document.getElementById('item-list'); if(!el)return;
+  api({action:'getItems'},function(err,data){
+    if (err||!data.success){ el.textContent='読み込みエラー'; return; }
+    var html='<table><thead><tr><th>アイテム名</th><th>レア度</th><th>コスト</th><th></th></tr></thead><tbody>';
+    data.items.forEach(function(item){
+      html+='<tr><td>'+esc(item.item_name)+'</td><td>'+esc(item.rarity)+'</td><td>'+item.exchange_cost+'枚</td>'
+        +'<td><button class="exchange-btn" onclick="doExchange(\''+esc(item.item_id)+'\',\''+esc(item.item_name)+'\','+Number(item.exchange_cost)+')">交換</button></td></tr>';
+    });
+    el.innerHTML=html+'</tbody></table>';
+  });
+}
+
+function doExchange(itemId,itemName,cost) {
+  if (!confirm(itemName+' と交換しますか？（'+cost+'枚消費）')) return;
+  msg('msg-exchange','交換中...','');
+  api({action:'exchangeItem',user_id:currentUser.user_id,item_id:itemId},function(err,data){
+    if (err){ msg('msg-exchange',err,'err'); return; }
+    if (data.success){
+      currentUser.tickets=data.remaining_tickets;
+      sessionStorage.setItem('gachaUser',JSON.stringify(currentUser));
+      document.getElementById('ticket-count').textContent=data.remaining_tickets;
+      updateGachaBtns();
+      msg('msg-exchange',data.message+' ／ 残り '+data.remaining_tickets+'枚','ok');
+    } else { msg('msg-exchange',data.message,'err'); }
+  });
+}
+</script>
+</body>
+</html>
