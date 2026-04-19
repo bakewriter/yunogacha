@@ -40,6 +40,26 @@
     }
     #gacha-header h1 { font-size: 18px; margin: 0; }
     #gacha-user-info { font-size: 13px; color: #666; }
+    #volume-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #volume-icon { font-size: 16px; }
+    #volume-slider {
+      -webkit-appearance: none;
+      width: 80px; height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #ff80b0, #ffb6d9);
+      outline: none; cursor: pointer;
+    }
+    #volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #ff80b0;
+      cursor: pointer;
+    }
     .logout-btn {
       background: #888; color: #fff; border: none;
       font-size: 12px; padding: 6px 16px; cursor: pointer; border-radius: 6px;
@@ -549,6 +569,11 @@
   <div id="gacha-header">
     <h1>ガチャシステム</h1>
     <div id="gacha-user-info"></div>
+    <div id="volume-wrap">
+      <span id="volume-icon">🔊</span>
+      <input type="range" id="volume-slider" min="0" max="100" value="80"
+        oninput="setVolume(this.value)">
+    </div>
     <button class="logout-btn" onclick="doLogout()">ログアウト</button>
   </div>
 
@@ -660,6 +685,14 @@
 <script>
 
 /* ===== ガチャ画面 JS ===== */
+
+function setVolume(val) {
+  var v = Number(val) / 100;
+  var snd = document.getElementById('gacha-sound');
+  if (snd) snd.volume = v;
+  var icon = document.getElementById('volume-icon');
+  if (icon) icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+}
 
 function updateGachaUI() {
   if (!currentUser) return;
