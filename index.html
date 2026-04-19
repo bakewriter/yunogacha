@@ -181,43 +181,44 @@
     .h-item.R   { background:#e0f0ff; color:#048; }
     .h-item.N   { background:#f5f5f5; color:#888; }
 
+
+
+    .tk-label { font-size: 11px; color: #fff; font-weight: bold; letter-spacing: 0.05em; }
+    .tk-count-wrap { display: flex; align-items: baseline; gap: 2px; }
+    .tk-count { font-size: 30px; color: #fff; font-weight: bold; line-height: 1; }
+    .tk-unit  { font-size: 13px; color: #fff; }
+
     /* チケット残数 */
     #ticket-wrap {
       position: relative;
+      width: 100%;
     }
     #ticket-frame-img {
       width: 100%;
-      height: auto; /* アスペクト比を維持 */
+      height: auto;
       display: block;
       object-fit: contain;
     }
     #ticket-box {
       position: absolute;
-      top: 20.6%; left: 40%; right: 12.5%; bottom: 14.8%;
+      /* 右側ピンクエリアに合わせて配置 */
+      top: 28%; bottom: 24%;
+      left: 42%; right: 12%;
       z-index: 1;
-      background: transparent;
-      border: none;
-      padding: 0 8px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 2px;
+      gap: 0;
+      padding: 0 4px;
     }
-    #ticket-icon-wrap {
-      width: 60px; height: 60px; flex-shrink: 0;
-      background: #fff;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden;
+    .tk-label {
+      font-size: 11px; color: #fff;
+      font-weight: bold; letter-spacing: 0.05em;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
-    #ticket-icon-wrap img {
-      width: 46px; height: 46px;
-      object-fit: contain;
-    }
-    .tk-label { font-size: 11px; color: #fff; font-weight: bold; letter-spacing: 0.05em; }
     .tk-count-wrap { display: flex; align-items: baseline; gap: 2px; }
-    .tk-count { font-size: 30px; color: #fff; font-weight: bold; line-height: 1; }
-    .tk-unit  { font-size: 13px; color: #fff; }
+    .tk-count { font-size: 26px; color: #fff; font-weight: bold; line-height: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .tk-unit  { font-size: 12px; color: #fff; }
 
     /* ネコキャラ */
     #neko-wrap img {
@@ -627,14 +628,16 @@
       </div>
 
       <!-- チケット残数 -->
-      <div id="ticket-box">
-        
-        <div id="ticket-text">
+      <div id="ticket-wrap">
+        <img id="ticket-frame-img" src="" alt="">
+        <div id="ticket-box">
           <div class="tk-label">残りチケット</div>
           <div class="tk-count-wrap">
             <span class="tk-count" id="ticket-count">-</span>
             <span class="tk-unit">枚</span>
           </div>
+        </div>
+      </div>
         </div>
       </div>
 
