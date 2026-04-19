@@ -1,1334 +1,1201 @@
-// ============================================================
-// ガチャシステム - バックエンド (Code.gs)
-// Google Apps Script
-// ============================================================
-
-// ---- スプレッドシートID ----
-// スタンドアロンの場合: スプレッドシートのURLにあるIDを貼る
-//   例) https://docs.google.com/spreadsheets/d/【ここ】/edit
-// スプレッドシートにバインド済みのプロジェクトなら '' のままでOK
-const SPREADSHEET_ID = '1Y1Hb9iUWuE8yNzbkLhX6E7bwMnkpfKtgXFCkXP9dSVE';
-
-// ============================================================
-// シート名定数
-// ============================================================
-const SHEET = {
-  USERS:      'ユーザー',
-  SERIALS:    'シリアル',
-  ITEMS:      'アイテム',
-  GACHA_LOGS: 'ガチャ履歴',
-  EXCHANGES:  '交換履歴',
-  INVENTORY:  '所持アイテム',
-  RECIPES:    '交換レシピ'
-};
-
-// ============================================================
-// チケット付与量（シリアル1本あたり）
-// ============================================================
-const TICKETS_PER_SERIAL = 10;
-
-// ============================================================
-// エントリーポイント：GETリクエスト（Webアプリとして公開）
-// ============================================================
-// doGet: HTMLファイル配信 + 素材プロキシ
-function doGet(e) {
-  // ?file=キー名 で素材ファイルをバイナリ配信
-  if (e && e.parameter && e.parameter.file) {
-    return serveAsset(e.parameter.file);
-  }
-  // ?payload= でAPI処理
-  if (e && e.parameter && e.parameter.payload) {
-    var params = {};
-    try { params = JSON.parse(e.parameter.payload); } catch(err) {
-      return jsonResponse({ success: false, message: 'リクエスト解析エラー' });
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ガチャシステム</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      max-width: none;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      box-sizing: border-box;
     }
-    var action = params.action;
-    try {
-      switch (action) {
-        case 'loginUser':      return jsonResponse(loginUser(params));
-        case 'verifySerial':   return jsonResponse(verifySerial(params));
-        case 'addSerial':      return jsonResponse(addSerial(params));
-        case 'getTicketCount': return jsonResponse(getTicketCount(params));
-        case 'rollGacha':      return jsonResponse(rollGacha(params));
-        case 'exchangeItem':   return jsonResponse(exchangeItem(params));
-        case 'getUserData':    return jsonResponse(getUserData(params));
-        case 'getItems':       return jsonResponse(getItems());
-        case 'getURUsers':      return jsonResponse(getURUsers());
-        case 'getInventory':    return jsonResponse(getInventory(params));
-        case 'getRecipes':     return jsonResponse(getRecipes());
-        case 'exchangeByItem': return jsonResponse(exchangeByItem(params));
-        case 'getAssets':      return jsonResponse(getAssets());
-        case 'getAsset':       return jsonResponse(getAsset(params));
-        default:               return jsonResponse({ success: false, message: '不正なアクションです' });
-      }
-    } catch(err) {
-      Logger.log('ERROR: ' + err.message);
-      return jsonResponse({ success: false, message: 'サーバーエラー: ' + err.message });
+    #screen-login {
+      max-width: 680px;
+      margin: 20px auto;
+      padding: 12px 16px;
+      box-sizing: border-box;
+      overflow: visible;
     }
-  }
-  // 通常アクセス：HTMLを返す
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('ガチャシステム')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-// ============================================================
-// 素材ファイルをバイナリで配信するプロキシ
-// ============================================================
-function serveAsset(key) {
-  var fileName = null;
-  // キー → ファイル名の逆引き
-  for (var name in ASSET_MAP) {
-    if (ASSET_MAP[name] === key) { fileName = name; break; }
-  }
-  if (!fileName) {
-    return ContentService.createTextOutput('Not found').setMimeType(ContentService.MimeType.TEXT);
-  }
-  try {
-    var folder = DriveApp.getFolderById(ASSETS_FOLDER_ID);
-    var files  = folder.getFilesByName(fileName);
-    if (!files.hasNext()) {
-      return ContentService.createTextOutput('File not found: ' + fileName)
-        .setMimeType(ContentService.MimeType.TEXT);
+    #screen-gacha {
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+      box-sizing: border-box;
     }
-    var file = files.next();
-    var blob = file.getBlob();
-    return ContentService
-      .createTextOutput(Utilities.base64Encode(blob.getBytes()))
-      .setMimeType(ContentService.MimeType.TEXT);
-  } catch(e) {
-    Logger.log('serveAsset ERROR: ' + e.message);
-    return ContentService.createTextOutput('Error: ' + e.message)
-      .setMimeType(ContentService.MimeType.TEXT);
-  }
-}
+    h1 { font-size: 20px; margin-bottom: 16px; }
+    .screen { display: none; }
+    .screen.active { display: block; }
 
-// ============================================================
-// エントリーポイント：POSTリクエスト
-// ============================================================
-function doPost(e) {
-  var params = {};
-  try {
-    params = JSON.parse(e.postData.contents);
-  } catch (err) {
-    return jsonResponse({ success: false, message: 'リクエストの解析に失敗しました' });
-  }
-  var action = params.action;
-
-  try {
-    switch (action) {
-      case 'loginUser':      return jsonResponse(loginUser(params));
-      case 'verifySerial':   return jsonResponse(verifySerial(params));
-      case 'addSerial':      return jsonResponse(addSerial(params));
-      case 'getTicketCount': return jsonResponse(getTicketCount(params));
-      case 'rollGacha':      return jsonResponse(rollGacha(params));
-      case 'exchangeItem':   return jsonResponse(exchangeItem(params));
-      case 'getUserData':    return jsonResponse(getUserData(params));
-      case 'getItems':       return jsonResponse(getItems());
-      case 'getAssets':      return jsonResponse(getAssets());
-      default:               return jsonResponse({ success: false, message: '不正なアクションです' });
+    /* ===== ガチャ画面 ===== */
+    #gacha-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 20px 4px;
+      width: 100%;
+      box-sizing: border-box;
     }
-  } catch (err) {
-    Logger.log('ERROR: ' + err.message);
-    return jsonResponse({ success: false, message: 'サーバーエラー: ' + err.message });
-  }
-}
-
-// ============================================================
-// JSONレスポンスを返すヘルパー
-// ============================================================
-function jsonResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-// ============================================================
-// スプレッドシート取得ヘルパー
-// ============================================================
-function getSpreadsheet() {
-  if (SPREADSHEET_ID && SPREADSHEET_ID !== '') {
-    return SpreadsheetApp.openById(SPREADSHEET_ID);
-  }
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) throw new Error(
-    'スプレッドシートが見つかりません。\n'
-    + 'スタンドアロンプロジェクトの場合は SPREADSHEET_ID を設定してください。'
-  );
-  return ss;
-}
-
-function getSheet(name) {
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName(name);
-  if (!sheet) throw new Error('シート "' + name + '" が見つかりません');
-  return sheet;
-}
-
-// ============================================================
-// 初期セットアップ：全シートとサンプルデータを作成
-// メニューから手動実行する
-// ============================================================
-function setupSpreadsheet() {
-  var ss = getSpreadsheet();
-
-  // --- usersシート ---
-  var sheet = ss.getSheetByName(SHEET.USERS);
-  if (!sheet) sheet = ss.insertSheet(SHEET.USERS);
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, 8).setValues([[
-    'ユーザーID', 'メールアドレス', 'ユーザー名', 'チケット枚数', '累計ガチャ回数',
-    '登録日時', '最終ログイン', '有効フラグ'
-  ]]);
-
-  // --- serialsシート ---
-  sheet = ss.getSheetByName(SHEET.SERIALS);
-  if (!sheet) sheet = ss.insertSheet(SHEET.SERIALS);
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, 6).setValues([[
-    'シリアルコード', 'チケット付与数', '使用済み', '使用者ユーザーID',
-    '使用日時', '作成日時'
-  ]]);
-  // サンプルシリアルを3件追加
-  sheet.getRange(2, 1, 3, 6).setValues([
-    ['BOOTH-0001-SAMPLE', TICKETS_PER_SERIAL, false, '', '', new Date()],
-    ['BOOTH-0002-SAMPLE', TICKETS_PER_SERIAL, false, '', '', new Date()],
-    ['BOOTH-0003-SAMPLE', TICKETS_PER_SERIAL, false, '', '', new Date()]
-  ]);
-
-  // --- itemsシート ---
-  sheet = ss.getSheetByName(SHEET.ITEMS);
-  if (!sheet) sheet = ss.insertSheet(SHEET.ITEMS);
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, 7).setValues([[
-    'アイテムID', 'アイテム名', 'レア度', '排出確率(%)',
-    '交換コスト', '説明', '有効フラグ'
-  ]]);
-  // サンプルアイテム（合計100%）
-  sheet.getRange(2, 1, 6, 7).setValues([
-    ['item_001', '伝説の剣',     'SSR', 2,  50, '最高レアリティの武器', true],
-    ['item_002', '魔法のローブ', 'SR',  8,  30, '上位レアリティの防具', true],
-    ['item_003', '勇者の盾',     'SR',  10, 30, '上位レアリティの防具', true],
-    ['item_004', '回復薬',       'R',   30, 10, '標準レアリティのアイテム', true],
-    ['item_005', '木の剣',       'R',   30, 10, '標準レアリティの武器', true],
-    ['item_006', '石ころ',       'N',   20, 5,  '下位レアリティのアイテム', true]
-  ]);
-
-  // --- gacha_logsシート ---
-  sheet = ss.getSheetByName(SHEET.GACHA_LOGS);
-  if (!sheet) sheet = ss.insertSheet(SHEET.GACHA_LOGS);
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, 6).setValues([[
-    'ログID', 'ユーザーID', 'アイテムID', 'アイテム名', 'レア度', '実行日時'
-  ]]);
-
-  // --- exchangesシート ---
-  sheet = ss.getSheetByName(SHEET.EXCHANGES);
-  if (!sheet) sheet = ss.insertSheet(SHEET.EXCHANGES);
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, 6).setValues([[
-    '交換ID', 'ユーザーID', 'アイテムID', 'アイテム名',
-    '消費チケット', '交換日時'
-  ]]);
-
-  // --- 所持アイテムシート ---
-  sheet = ss.getSheetByName(SHEET.INVENTORY);
-  if (!sheet) sheet = ss.insertSheet(SHEET.INVENTORY);
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, 5).setValues([[
-    'ユーザーID', 'アイテムID', 'アイテム名', 'レア度', '所持数'
-  ]]);
-
-  // --- 交換レシピシート ---
-  sheet = ss.getSheetByName(SHEET.RECIPES);
-  if (!sheet) sheet = ss.insertSheet(SHEET.RECIPES);
-  sheet.clearContents();
-  sheet.getRange(1, 1, 1, 8).setValues([[
-    'レシピID', '消費アイテムレア度', '消費数', '獲得アイテムID', '獲得アイテム名', '獲得レア度', '説明', '有効フラグ'
-  ]]);
-  // サンプルレシピ
-  sheet.getRange(2, 1, 3, 8).setValues([
-    ['recipe_001', 'N',  5,  'item_005', '木の剣',       'R',   'N×5枚でR1枚', true],
-    ['recipe_002', 'R',  5,  'item_002', '魔法のローブ', 'SR',  'R×5枚でSR1枚', true],
-    ['recipe_003', 'SR', 3,  'item_001', '伝説の剣',     'SSR', 'SR×3枚でSSR1枚', true]
-  ]);
-
-  Logger.log('セットアップ完了！全シートと初期データが作成されました。');
-}
-
-// ============================================================
-// メニューにセットアップボタンを追加
-// ============================================================
-// onOpen はバインドプロジェクト専用のため、スタンドアロンでは使用しない
-// setupSpreadsheet() を直接「実行」メニューから手動実行してください
-function onOpen() {}
-
-// ============================================================
-// ユーティリティ：ユニークIDを生成
-// ============================================================
-function generateId(prefix) {
-  return prefix + '_' + new Date().getTime() + '_' + Math.random().toString(36).substr(2, 6);
-}
-
-// ============================================================
-// ユーティリティ：メールアドレスのバリデーション
-// ============================================================
-function isValidEmail(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-// ============================================================
-// ユーティリティ：usersシートからユーザーをメール+名前で取得
-// 戻り値：{ rowIndex, data } または null
-// ============================================================
-function findUserByEmailAndName(email, username) {
-  var sheet = getSheet(SHEET.USERS);
-  var data = sheet.getDataRange().getValues();
-  // ヘッダー行をスキップ（row 0 = ヘッダー）
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][1]).toLowerCase() === email.toLowerCase() &&
-        String(data[i][2]) === username) {
-      return { rowIndex: i + 1, data: data[i] }; // rowIndexは1始まり
+    #gacha-header h1 { font-size: 18px; margin: 0; }
+    #gacha-user-info { font-size: 13px; color: #666; }
+    #volume-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-  }
-  return null;
-}
-
-// ============================================================
-// ユーティリティ：user_idでユーザー取得
-// ============================================================
-function findUserById(userId) {
-  var sheet = getSheet(SHEET.USERS);
-  var data = sheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === userId) {
-      return { rowIndex: i + 1, data: data[i] };
+    #volume-icon { font-size: 16px; }
+    #volume-slider {
+      -webkit-appearance: none;
+      width: 80px; height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #ff80b0, #ffb6d9);
+      outline: none; cursor: pointer;
     }
-  }
-  return null;
-}
-
-// ============================================================
-// ユーティリティ：メールアドレスの重複チェック
-// ============================================================
-function findUserByEmail(email) {
-  var sheet = getSheet(SHEET.USERS);
-  var data = sheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][1]).toLowerCase() === email.toLowerCase()) {
-      return { rowIndex: i + 1, data: data[i] };
+    #volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #ff80b0;
+      cursor: pointer;
     }
-  }
-  return null;
-}
-
-// ============================================================
-// フェーズ1 必須関数
-// ============================================================
-
-/**
- * loginUser
- * 初回ログイン：email + username + serial を受け取り新規ユーザーを作成
- * 2回目以降：email + username でユーザーを認証
- *
- * params: { email, username, serial (任意) }
- */
-function loginUser(params) {
-  var { email, username, serial } = params;
-
-  // 入力チェック
-  if (!email || !username) {
-    return { success: false, message: 'メールアドレスとユーザー名は必須です' };
-  }
-  if (!isValidEmail(email)) {
-    return { success: false, message: '正しいメールアドレス形式を入力してください' };
-  }
-
-  var existingUser = findUserByEmail(email);
-
-  // --- 既存ユーザーのログイン ---
-  if (existingUser) {
-    // ユーザー名の照合（セキュリティ）
-    if (String(existingUser.data[2]) !== username) {
-      return { success: false, message: 'ユーザー名が一致しません' };
-    }
-    if (!existingUser.data[7]) {
-      return { success: false, message: 'このアカウントは無効化されています' };
+    .logout-btn {
+      background: #888; color: #fff; border: none;
+      font-size: 12px; padding: 6px 16px; cursor: pointer; border-radius: 6px;
     }
 
-    // 最終ログイン時刻を更新
-    var sheet = getSheet(SHEET.USERS);
-    sheet.getRange(existingUser.rowIndex, 7).setValue(new Date());
-
-    return {
-      success: true,
-      message: 'ログイン成功',
-      isNewUser: false,
-      user: {
-        user_id:    String(existingUser.data[0]),
-        email:      String(existingUser.data[1]),
-        username:   String(existingUser.data[2]),
-        tickets:    Number(existingUser.data[3]),
-        total_rolls: Number(existingUser.data[4])
-      }
-    };
-  }
-
-  // --- 新規ユーザー登録 ---
-  // シリアルが必要
-  if (!serial) {
-    return { success: false, message: '初回登録にはシリアルコードが必要です' };
-  }
-
-  // シリアル検証
-  var serialResult = verifySerial({ serial });
-  if (!serialResult.success) {
-    return { success: false, message: 'シリアルエラー: ' + serialResult.message };
-  }
-
-  // ユーザーIDを生成
-  var userId = generateId('user');
-  var now = new Date();
-
-  // usersシートに追加
-  var userSheet = getSheet(SHEET.USERS);
-  userSheet.appendRow([
-    userId, email, username,
-    serialResult.ticketsValue, // チケット初期付与
-    0,         // total_rolls
-    now,       // created_at
-    now,       // last_login
-    true       // is_active
-  ]);
-
-  // シリアルを使用済みにする
-  markSerialUsed(serial, userId);
-
-  return {
-    success: true,
-    message: '登録成功！チケット ' + serialResult.ticketsValue + ' 枚が付与されました',
-    isNewUser: true,
-    user: {
-      user_id:    userId,
-      email:      email,
-      username:   username,
-      tickets:    serialResult.ticketsValue,
-      total_rolls: 0
+    /* 3カラムグリッド */
+    #gacha-wrap {
+      display: grid !important;
+      grid-template-columns: 220px 1fr 260px !important;
+      gap: 16px;
+      padding: 8px 20px 20px;
+      align-items: start;
+      width: 100%;
+      box-sizing: border-box;
     }
-  };
-}
-
-/**
- * verifySerial
- * シリアルコードの有効性を確認（使用はしない）
- *
- * params: { serial }
- */
-function verifySerial(params) {
-  var { serial } = params;
-
-  if (!serial || serial.trim() === '') {
-    return { success: false, message: 'シリアルコードを入力してください' };
-  }
-
-  var sheet = getSheet(SHEET.SERIALS);
-  var data = sheet.getDataRange().getValues();
-
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).toUpperCase() === serial.trim().toUpperCase()) {
-      // シリアルが既に使用済み
-      if (data[i][2] === true || data[i][2] === 'TRUE' || data[i][2] === 'true') {
-        return { success: false, message: 'このシリアルコードは既に使用済みです' };
-      }
-      return {
-        success: true,
-        message: 'シリアルコードは有効です',
-        ticketsValue: Number(data[i][1])
-      };
+    @media (max-width: 768px) {
+      #gacha-wrap { grid-template-columns: 1fr !important; }
     }
-  }
 
-  return { success: false, message: 'シリアルコードが存在しません' };
-}
+    /* ===== 左カラム ===== */
+    .gacha-left { display: flex; flex-direction: column; gap: 14px; }
 
-/**
- * markSerialUsed (内部ヘルパー)
- * シリアルを使用済みにマークする
- */
-function markSerialUsed(serial, userId) {
-  var sheet = getSheet(SHEET.SERIALS);
-  var data = sheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).toUpperCase() === serial.trim().toUpperCase()) {
-      sheet.getRange(i + 1, 3).setValue(true);         // is_used = true
-      sheet.getRange(i + 1, 4).setValue(userId);        // used_by_user_id
-      sheet.getRange(i + 1, 5).setValue(new Date());    // used_at
-      return;
+    #trade-wrap img {
+      width: 100%;
+      object-fit: contain;
+      cursor: pointer;
     }
-  }
-}
 
-/**
- * addSerial
- * ログイン済みユーザーが追加のシリアルコードを登録してチケットを獲得
- *
- * params: { user_id, serial }
- */
-function addSerial(params) {
-  var { user_id, serial } = params;
-
-  if (!user_id || !serial) {
-    return { success: false, message: 'user_idとシリアルコードは必須です' };
-  }
-
-  // ユーザー存在確認
-  var user = findUserById(user_id);
-  if (!user) {
-    return { success: false, message: 'ユーザーが見つかりません' };
-  }
-  if (!user.data[7]) {
-    return { success: false, message: 'このアカウントは無効化されています' };
-  }
-
-  // シリアル検証
-  var serialResult = verifySerial({ serial });
-  if (!serialResult.success) {
-    return { success: false, message: serialResult.message };
-  }
-
-  // チケットを加算
-  var currentTickets = Number(user.data[3]);
-  var newTickets = currentTickets + serialResult.ticketsValue;
-  var userSheet = getSheet(SHEET.USERS);
-  userSheet.getRange(user.rowIndex, 4).setValue(newTickets);
-
-  // シリアルを使用済みに
-  markSerialUsed(serial, user_id);
-
-  return {
-    success: true,
-    message: 'シリアル登録成功！チケット ' + serialResult.ticketsValue + ' 枚が追加されました',
-    added_tickets: serialResult.ticketsValue,
-    new_ticket_count: newTickets
-  };
-}
-
-/**
- * getTicketCount
- * 現在のチケット枚数を取得
- *
- * params: { user_id }
- */
-function getTicketCount(params) {
-  var { user_id } = params;
-
-  if (!user_id) {
-    return { success: false, message: 'user_idは必須です' };
-  }
-
-  var user = findUserById(user_id);
-  if (!user) {
-    return { success: false, message: 'ユーザーが見つかりません' };
-  }
-
-  return {
-    success: true,
-    tickets: Number(user.data[3]),
-    total_rolls: Number(user.data[4])
-  };
-}
-
-/**
- * rollGacha
- * ガチャを実行する
- *
- * params: { user_id, count } ← count: 1 / 5 / 10
- */
-function rollGacha(params) {
-  var { user_id, count } = params;
-  var rollCount = parseInt(count) || 1;
-
-  // バリデーション
-  if (!user_id) {
-    return { success: false, message: 'user_idは必須です' };
-  }
-  if (![1, 5, 10, 11].includes(rollCount)) {
-    return { success: false, message: '回数は1・5・10・11のいずれかを指定してください' };
-  }
-
-  // ユーザー確認
-  var user = findUserById(user_id);
-  if (!user) {
-    return { success: false, message: 'ユーザーが見つかりません' };
-  }
-  if (!user.data[7]) {
-    return { success: false, message: 'このアカウントは無効化されています' };
-  }
-
-  var currentTickets = Number(user.data[3]);
-
-  // チケット消費数（11連は10枚消費）
-  var ticketCost = rollCount === 11 ? 10 : rollCount;
-
-  // チケット不足チェック
-  if (currentTickets < ticketCost) {
-    return {
-      success: false,
-      message: 'チケットが不足しています。必要: ' + ticketCost + ' 枚 / 所持: ' + currentTickets + ' 枚'
-    };
-  }
-
-  // アイテムリストと確率テーブルを取得
-  var itemSheet = getSheet(SHEET.ITEMS);
-  var itemData = itemSheet.getDataRange().getValues();
-  var activeItems = [];
-  for (var i = 1; i < itemData.length; i++) {
-    if (itemData[i][6] === true || itemData[i][6] === 'TRUE' || itemData[i][6] === 'true') {
-      activeItems.push({
-        item_id:       String(itemData[i][0]),
-        item_name:     String(itemData[i][1]),
-        rarity:        String(itemData[i][2]),
-        probability:   Number(itemData[i][3]),
-        exchange_cost: Number(itemData[i][4]),
-        description:   String(itemData[i][5])
-      });
+    /* URボックス（画像のみ） */
+    #ur-wrap { width: 100%; }
+    #ur-frame-img {
+      width: 100%;
+      object-fit: contain;
     }
-  }
 
-  if (activeItems.length === 0) {
-    return { success: false, message: 'ガチャアイテムが設定されていません' };
-  }
+    /* SSRランプは中央カラム内に移動済み */
 
-  // 確率の合計チェック（100でなければエラー）
-  var totalProb = activeItems.reduce((sum, item) => sum + item.probability, 0);
-  if (Math.abs(totalProb - 100) > 0.01) {
-    return { success: false, message: '確率設定エラー: 合計が ' + totalProb + '% です（100%にしてください）' };
-  }
+    /* ===== 中央カラム ===== */
+    .gacha-center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
 
-  // ガチャを rollCount 回実行
-  var results = [];
-  for (var r = 0; r < rollCount; r++) {
-    var item = drawGacha(activeItems);
-    results.push(item);
-  }
+    /* 演出エリア＋SSRラップ */
+    #gacha-stage-wrap {
+      position: relative;
+      width: 100%;
+    }
 
-  // チケットを減算（11連は10枚）
-  var newTickets = currentTickets - ticketCost;
-  var totalRolls = Number(user.data[4]) + rollCount;
-  var userSheet = getSheet(SHEET.USERS);
-  userSheet.getRange(user.rowIndex, 4).setValue(newTickets);
-  userSheet.getRange(user.rowIndex, 5).setValue(totalRolls);
+    /* 演出エリア（16:9） */
+    #gacha-stage {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    #gacha-idle { font-size: clamp(14px,2vw,20px); color: #ccc; font-weight: bold; }
+    #gacha-result-display {
+      display: none; flex-direction: column;
+      align-items: center; gap: 6px;
+      padding: 12px; width: 100%; overflow-y: auto;
+    }
+    .result-card {
+      padding: 7px 16px; border-radius: 20px;
+      font-size: 14px; font-weight: bold;
+      color: #fff; width: 88%; text-align: center;
+    }
+    .result-card.SSR { background: linear-gradient(90deg,#f9c,#f6a); box-shadow: 0 0 12px #f9c; }
+    .result-card.SR  { background: linear-gradient(90deg,#c9f,#a6f); }
+    .result-card.R   { background: linear-gradient(90deg,#9cf,#6af); }
+    .result-card.N   { background: #ccc; color: #555; }
 
-  // gacha_logsに記録
-  var logSheet = getSheet(SHEET.GACHA_LOGS);
-  var now = new Date();
-  results.forEach(function(item) {
-    logSheet.appendRow([
-      generateId('log'),
-      user_id,
-      item.item_id,
-      item.item_name,
-      item.rarity,
-      now
-    ]);
+    /* SSRランプ：左カラム下部 */
+    #ssr-wrap { width: 100%; }
+    #ssr-wrap img {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      opacity: 0.45;
+      transition: opacity 0.3s, filter 0.3s;
+    }
+    #ssr-wrap img.lit { opacity: 1; filter: drop-shadow(0 0 14px #f9c); }
+
+    /* ガチャボタン横並び */
+    #gacha-btns {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: nowrap;
+      width: 100%;
+    }
+    .gacha-btn {
+      background: none; border: none; padding: 0;
+      cursor: pointer; transition: transform 0.1s;
+      flex: 0 0 auto;
+    }
+    .gacha-btn:active { transform: scale(0.95); }
+    .gacha-btn:disabled { opacity: 0.4; cursor: default; }
+    .gacha-btn img {
+      width: clamp(80px, 10vw, 130px);
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    /* ===== 右カラム ===== */
+    .gacha-right { display: flex; flex-direction: column; gap: 14px; }
+
+    /* 当選履歴 */
+    #history-wrap {
+      position: relative;
+      width: 100%;
+    }
+    #history-frame-img {
+      width: 100%; height: auto; display: block;
+    }
+    #history-box {
+      position: absolute;
+      top: 27.5%; bottom: 14%;
+      left: 12.6%; right: 12.8%;
+      z-index: 1;
+      background: transparent;
+      border: none;
+      padding: 2px 4px;
+      overflow-y: auto;
+    }
+    .box-title { display: none; } /* タイトルは画像内に含まれる */
+    #history-items { font-size: 12px; }
+    .h-item { padding: 2px 6px; margin-bottom: 2px; border-radius: 6px; font-weight: bold; }
+    .h-item.SSR { background:#fff0f6; color:#e05; }
+    .h-item.SR  { background:#f0e0ff; color:#808; }
+    .h-item.R   { background:#e0f0ff; color:#048; }
+    .h-item.N   { background:#f5f5f5; color:#888; }
+
+    /* チケット残数 */
+    #ticket-wrap {
+      position: relative;
+      width: 100%;
+    }
+    #ticket-frame-img {
+      width: 100%; height: auto; display: block;
+    }
+    #ticket-box {
+      position: absolute;
+      top: 32%; bottom: 18%;
+      left: 40%; right: 8%;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 0;
+      padding: 0 8px;
+      background: transparent;
+      border: none;
+    }
+    .tk-label { display: none; } /* 画像内に含まれるため非表示 */
+    .tk-count-wrap { display: flex; align-items: baseline; gap: 2px; }
+    .tk-count { font-size: 22px; color: #fff; font-weight: bold; line-height: 1; }
+    .tk-unit  { font-size: 11px; color: #fff; }
+
+    /* ネコキャラ */
+    #neko-wrap {
+      width: 100%;
+      margin-top: 4px;
+    }
+    #neko-wrap img {
+      width: 85%;
+      max-width: 200px;
+      object-fit: contain;
+      cursor: pointer;
+      transition: transform 0.15s;
+      display: block;
+    }
+    #neko-wrap img:hover { transform: scale(1.04); }
+
+    /* SSRオーバーレイ */
+    #ssr-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(255,180,220,0); z-index: 100; pointer-events: none;
+    }
+    #ssr-overlay.flash { animation: ssrFlash 0.6s ease-out forwards; }
+    @keyframes ssrFlash {
+      0%  { background: rgba(255,180,220,0); }
+      30% { background: rgba(255,180,220,0.7); }
+      100%{ background: rgba(255,180,220,0); }
+    }
+
+    /* シリアル・交換 */
+    #serial-section, #exchange-section {
+      display: none; padding: 0 20px 16px;
+    }
+    #serial-section h2, #exchange-section h2 { font-size: 15px; margin-bottom: 8px; }
+    #serial-input {
+      padding: 6px 12px; border: 1px solid #ccc;
+      border-radius: 20px; font-size: 13px; width: 220px;
+    }
+    button.add-btn {
+      background: #ff80b0; color: #fff; border: none;
+      padding: 6px 16px; border-radius: 20px; cursor: pointer;
+      font-size: 13px; margin-left: 8px;
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+    th, td { border: 1px solid #eee; padding: 6px 10px; }
+    th { background: #fef0f6; }
+    button.exchange-btn {
+      background: #ff80b0; color: #fff; border: none;
+      font-size: 12px; padding: 4px 12px; cursor: pointer; border-radius: 12px;
+    }
+
+        /* ===== ログイン画面 ===== */
+    .tab-btns {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      position: absolute;
+      top: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      white-space: nowrap;
+    }
+    .tab-btn-item {
+      padding: clamp(4px,1vw,6px) clamp(10px,2.5vw,18px);
+      font-size: clamp(11px,1.8vw,13px);
+      font-weight: bold;
+      background: #ccc;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: opacity 0.25s, background 0.25s;
+      letter-spacing: 0.05em;
+    }
+    .tab-btn-item.active { background: #444; opacity: 1; }
+
+    .card-stage {
+      position: relative;
+      margin-top: 44px;
+      overflow: visible;
+      width: 140%;
+      margin-left: -20%;
+      /* frontカードの高さを継承するためmin-heightを設定 */
+    }
+    .tab-card {
+      position: relative; top: 0; left: 0;
+      width: calc(100% - 12px);
+      aspect-ratio: 1920 / 1080;
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-color: rgba(200,200,200,0.15); /* フレーム未ロード時の仮背景 */
+      border: none;
+      padding: 12% 36% 11% 36%;
+      box-sizing: border-box;
+      transform-origin: top center;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      cursor: pointer;
+    }
+    .tab-card.front {
+      position: relative; /* 高さをstageに伝える */
+      left: 0;
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      z-index: 2;
+    }
+    .tab-card.back {
+      position: absolute; /* backはabsoluteのまま */
+      left: 0;
+      transform: scale(0.86) translateX(46%) translateY(14px);
+      opacity: 0.65;
+      z-index: 1;
+    }
+    .card-title { display: none; }
+    .tab-card label { display: block; font-size: clamp(10px,1.6vw,13px); margin-bottom: 3px; color: #444; }
+    .tab-card input {
+      width: 100%; box-sizing: border-box;
+      padding: clamp(3px,0.8vw,6px) 8px;
+      font-size: clamp(10px,1.6vw,13px);
+      border: 1px solid #ddd; border-radius: 20px;
+      margin-bottom: clamp(2px,0.5vw,5px);
+      background: rgba(255,255,255,0.5);
+      pointer-events: none;
+    }
+    .tab-card.front input {
+      background: rgba(255,255,255,0.95);
+      border-color: #bbb;
+      pointer-events: auto;
+    }
+    .card-tab-label { display: none; }
+
+    #login-btn-wrap {
+      text-align: center;
+      margin-top: 16px;
+      position: relative;
+      z-index: 5;
+    }
+    button.main-btn {
+      display: inline-block;
+      min-width: 200px;
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      color: #fff;
+      background: linear-gradient(135deg, #ff80b0, #ffb347);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin-top: 8px;
+    }
+    button.main-btn:hover { transform: scale(1.04); box-shadow: 0 6px 20px rgba(255,128,176,0.6); }
+    button.main-btn:active { transform: scale(0.97); }
+    button#btn-login {
+      background: linear-gradient(135deg, #80c8ff, #b47fff);
+      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
+    }
+    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
+    .err { color: #c00; }
+    .ok  { color: #080; }
+
+    /* ===== ガチャ画面 ===== */
+    #gacha-wrap {
+      display: grid;
+      grid-template-columns: 200px 1fr 200px;
+      gap: 12px;
+      align-items: start;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 8px;
+    }
+    @media (max-width: 800px) {
+      #gacha-wrap { grid-template-columns: 1fr; }
+    }
+    .gacha-left, .gacha-right { display: flex; flex-direction: column; gap: 10px; }
+    .gacha-center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+    #gacha-stage-old-removed {
+      display: none;
+      overflow: hidden; position: relative;
+    }
+    #gacha-idle { font-size: clamp(14px,2.5vw,20px); color: #ccc; font-weight: bold; }
+    #gacha-result-display {
+      display: none; flex-direction: column;
+      align-items: center; gap: 6px; padding: 12px; width: 100%;
+    }
+    .result-card {
+      padding: 6px 14px; border-radius: 20px;
+      font-size: clamp(12px,1.8vw,15px); font-weight: bold;
+      color: #fff; width: 90%; text-align: center;
+    }
+    .result-card.SSR { background: linear-gradient(90deg,#f9c,#f6a); box-shadow: 0 0 12px #f9c; }
+    .result-card.SR  { background: linear-gradient(90deg,#c9f,#a6f); }
+    .result-card.R   { background: linear-gradient(90deg,#9cf,#6af); }
+    .result-card.N   { background: #ccc; color: #555; }
+
+    #gacha-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .gacha-btn {
+      cursor: pointer; border: none; background: none; padding: 0;
+      transition: transform 0.1s;
+    }
+    .gacha-btn:active { transform: scale(0.95); }
+    .gacha-btn:disabled { opacity: 0.4; cursor: default; }
+    .gacha-btn img { width: clamp(90px,20vw,150px); display: block; }
+
+    #history-box .box-title { font-size: 13px; font-weight: bold; color: #ff80b0; margin-bottom: 8px; text-align: center; }
+    #history-items { font-size: 12px; color: #666; min-height: 60px; }
+    .h-item { padding: 3px 6px; margin-bottom: 3px; border-radius: 6px; font-weight: bold; }
+    .h-item.SSR { background:#fff0f6; color:#e05; }
+    .h-item.SR  { background:#f0e0ff; color:#808; }
+    .h-item.R   { background:#e0f0ff; color:#048; }
+    .h-item.N   { background:#f5f5f5; color:#888; }
+
+
+    .tk-label { font-size: 12px; color: #fff; font-weight: bold; }
+    .tk-count { font-size: 28px; color: #fff; font-weight: bold; line-height: 1; }
+    .tk-unit  { font-size: 13px; color: #fff; }
+
+    #ur-box {
+      background: linear-gradient(135deg,#ffb6d9,#ff80b0);
+      border-radius: 12px; padding: 10px 12px;
+      text-align: center; color: #fff; font-weight: bold;
+    }
+    #ur-box .ur-crown { font-size: 22px; }
+    #ur-box .ur-title { font-size: 12px; margin: 4px 0; }
+    #ur-box .ur-name {
+      font-size: 16px; background: #fff; color: #ff80b0;
+      border-radius: 8px; padding: 5px 8px; margin-top: 6px;
+    }
+
+    #ssr-lamp { width: 100%; opacity: 0.4; transition: opacity 0.3s, filter 0.3s; }
+    #ssr-lamp.lit { opacity: 1; filter: drop-shadow(0 0 12px #f9c); }
+
+    #trade-img { width: 100%; cursor: pointer; }
+    #neko-img  { width: 100%; cursor: pointer; transition: transform 0.15s; }
+    #neko-img:hover { transform: scale(1.04); }
+
+    #ssr-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(255,180,220,0); z-index: 100; pointer-events: none;
+    }
+    #ssr-overlay.flash { animation: ssrFlash 0.6s ease-out forwards; }
+    @keyframes ssrFlash {
+      0%  { background: rgba(255,180,220,0); }
+      30% { background: rgba(255,180,220,0.7); }
+      100%{ background: rgba(255,180,220,0); }
+    }
+
+    #gacha-header {
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: 1100px; margin: 0 auto 8px; padding: 0 8px;
+    }
+    #gacha-header h1 { font-size: 18px; margin: 0; }
+    button.logout-btn {
+      background: #888; color: #fff; border: none;
+      font-size: 12px; padding: 5px 12px; cursor: pointer; border-radius: 4px;
+    }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 6px; }
+    th, td { border: 1px solid #eee; padding: 5px 8px; text-align: left; }
+    th { background: #fef0f6; }
+    button.exchange-btn {
+      background: #ff80b0; color: #fff; border: none;
+      font-size: 12px; padding: 4px 10px; cursor: pointer; border-radius: 12px;
+    }
+    input.serial-input {
+      width: 240px; padding: 6px 10px;
+      border: 1px solid #ccc; border-radius: 20px; font-size: 13px;
+    }
+    button.add-btn {
+      background: #ff80b0; color: #fff; border: none;
+      padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px;
+    }
+    @media (max-width: 400px) {
+      h2 { font-size: 14px; }
+      .gacha-btn img { width: 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== ローディング画面 ===== -->
+<div id="screen-loading" style="
+  position: fixed; inset: 0; z-index: 9999;
+  background: #fff;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px;
+">
+  <div style="font-size:28px;">🐱</div>
+  <div style="
+    width: 200px; height: 6px;
+    background: #f0d0e0; border-radius: 10px; overflow: hidden;
+  ">
+    <div id="load-bar" style="
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #ff80b0, #ffb347);
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    "></div>
+  </div>
+  <div id="load-text" style="font-size:13px; color:#aaa;">素材を読み込んでいます...</div>
+</div>
+
+<!-- ===== ログイン画面 ===== -->
+<div id="screen-login" class="screen active">
+  <h1>ガチャシステム</h1>
+
+  <div class="card-stage" id="card-stage">
+    <div class="tab-btns">
+      <button class="tab-btn-item active" id="tbtn-new"   onclick="switchTab('new')">初回登録</button>
+      <button class="tab-btn-item"        id="tbtn-exist" onclick="switchTab('exist')">2回目以降</button>
+    </div>
+
+    <!-- 奥カード：2回目以降 -->
+    <div class="tab-card back" id="card-exist" onclick="switchTab('exist')">
+      <div class="card-title">ログイン</div>
+      <label>メールアドレス<input type="email" id="login-email" placeholder="登録時のメールアドレス"></label>
+      <label>ユーザー名<input type="text" id="login-name" placeholder="登録時のユーザー名"></label>
+    </div>
+
+    <!-- 手前カード：初回登録 -->
+    <div class="tab-card front" id="card-new" onclick="switchTab('new')">
+      <div class="card-title">初回登録</div>
+      <label>メールアドレス<input type="email" id="reg-email" placeholder="example@email.com"></label>
+      <label>ユーザー名<input type="text" id="reg-name" placeholder="お好きな名前"></label>
+      <label>シリアルコード（BOOTHの注文番号）<input type="text" id="reg-serial" placeholder="BOOTH-XXXX-XXXX"></label>
+    </div>
+  </div>
+
+  <div id="login-btn-wrap">
+    <button id="btn-reg"   class="main-btn" onclick="doRegister()">登録してはじめる</button>
+    <button id="btn-login" class="main-btn" style="display:none;" onclick="doLogin()">ログイン</button>
+  </div>
+  <div id="msg-login" class="msg"></div>
+</div>
+
+<!-- ===== ガチャ画面 ===== -->
+<div id="screen-gacha" class="screen">
+  <div id="ssr-overlay"></div>
+
+  <!-- ヘッダー -->
+  <div id="gacha-header">
+    <h1>ガチャシステム</h1>
+    <div id="gacha-user-info"></div>
+    <div id="volume-wrap">
+      <span id="volume-icon">🔊</span>
+      <input type="range" id="volume-slider" min="0" max="100" value="80"
+        oninput="setVolume(this.value)">
+    </div>
+    <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+  </div>
+
+  <!-- メインレイアウト：3カラム -->
+  <div id="gacha-wrap">
+
+    <!-- ===== 左カラム ===== -->
+    <div class="gacha-left">
+      <!-- 交換所ボタン -->
+      <div id="trade-wrap">
+        <img id="trade-img" src="" alt="交換所" onclick="showExchange()">
+      </div>
+
+      <!-- SSRランプ（交換所の下） -->
+      <div id="ssr-wrap">
+        <img id="ssr-lamp" src="" alt="SSR">
+      </div>
+
+      <!-- URを出したユーザー（SSRの下） -->
+      <div id="ur-wrap">
+        <img id="ur-frame-img" src="" alt="" style="width:100%;object-fit:contain;display:block;">
+      </div>
+    </div>
+
+    <!-- ===== 中央カラム ===== -->
+    <div class="gacha-center">
+      <!-- 演出エリア -->
+      <div id="gacha-stage-wrap" style="position:relative;width:100%;">
+      <!-- 演出エリア（白いカード） -->
+      <div id="gacha-stage">
+        <div id="gacha-idle">ガチャを引いてね！</div>
+        <!-- 動画演出エリア -->
+        <video id="gacha-video"
+          style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
+          playsinline
+          preload="none">
+        </video>
+        <div id="gacha-result-display"></div>
+      </div>
+      </div><!-- /gacha-stage-wrap -->
+
+      <!-- ガチャボタン（横並び・チケット枚数で表示切替） -->
+      <div id="gacha-btns">
+        <button class="gacha-btn" id="gbtn-1"  onclick="doRoll(1)">
+          <img id="img-btn1"  src="" alt="1回引く">
+        </button>
+        <button class="gacha-btn" id="gbtn-5"  onclick="doRoll(5)">
+          <img id="img-btn5"  src="" alt="5連引く">
+        </button>
+        <button class="gacha-btn" id="gbtn-10" onclick="doRoll(10)">
+          <img id="img-btn10" src="" alt="11連引く">
+        </button>
+      </div>
+      <div id="msg-gacha" class="msg"></div>
+    </div>
+
+    <!-- ===== 右カラム ===== -->
+    <div class="gacha-right">
+      <!-- 当選履歴 -->
+      <div id="history-wrap">
+        <!-- フレーム画像が自然なサイズで表示される -->
+        <img id="history-frame-img" src="" alt="">
+        <!-- テキストをフレームの上に重ねる -->
+        <div id="history-box">
+          <div id="history-items"><span style="color:#ccc;font-size:12px;">まだ引いていません</span></div>
+        </div>
+      </div>
+
+      <!-- チケット残数 -->
+      <div id="ticket-wrap">
+        <img id="ticket-frame-img" src="" alt="">
+        <div id="ticket-box">
+          <div class="tk-label">残りチケット</div>
+          <div class="tk-count-wrap">
+            <span class="tk-count" id="ticket-count">-</span>
+            <span class="tk-unit">枚</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ネコキャラ（チケット追加） -->
+      <div id="neko-wrap">
+        <img id="neko-img" src="" alt="チケット追加" onclick="showAddSerial()">
+      </div>
+    </div>
+
+  </div><!-- /gacha-wrap -->
+
+  <!-- シリアル追加（折りたたみ） -->
+  <div id="serial-section" style="display:none;">
+    <h2>シリアルコード追加</h2>
+    <input type="text" id="serial-input" placeholder="BOOTHの注文番号">
+    <button class="add-btn" onclick="doAddSerial()">追加する</button>
+    <div id="msg-serial" class="msg"></div>
+  </div>
+
+  <!-- 交換所（折りたたみ） -->
+  <div id="exchange-section" style="display:none;">
+    <h2>アイテム交換</h2>
+    <div id="item-list"></div>
+    <div id="msg-exchange" class="msg"></div>
+  </div>
+
+  <audio id="gacha-sound" preload="auto"></audio>
+</div>
+
+
+
+<script>
+
+/* ===== ガチャ画面 JS ===== */
+
+// ============================================================
+// URユーザーをスプレッドシートから取得して5秒ごとにランダム表示
+// ============================================================
+var urUsers = [];
+var urDisplayTimer = null;
+
+function loadURUsers() {
+  api({ action: 'getURUsers' }, function(err, data) {
+    if (err || !data.success) return;
+    urUsers = data.users || [];
+    if (urUsers.length > 0) startURDisplay();
   });
-  // 所持アイテムに追加
-  addToInventory(user_id, results);
-
-  return {
-    success: true,
-    message: rollCount + '連ガチャ実行完了！',
-    results:          results,
-    tickets_used:     ticketCost,
-    remaining_tickets: newTickets,
-    total_rolls:      totalRolls
-  };
 }
 
-/**
- * drawGacha (内部ヘルパー)
- * 確率テーブルからランダムに1件を抽選
- */
-function drawGacha(items) {
-  var rand = Math.random() * 100;
-  var cumulative = 0;
-  for (var i = 0; i < items.length; i++) {
-    cumulative += items[i].probability;
-    if (rand < cumulative) {
-      return items[i];
-    }
-  }
-  // 浮動小数点誤差のフォールバック：最後のアイテムを返す
-  return items[items.length - 1];
+function startURDisplay() {
+  if (urDisplayTimer) clearInterval(urDisplayTimer);
+  showRandomURUser(); // 即座に1件表示
+  urDisplayTimer = setInterval(showRandomURUser, 5000);
 }
 
-/**
- * exchangeItem
- * チケットを使ってアイテムと交換する
- *
- * params: { user_id, item_id }
- */
-function exchangeItem(params) {
-  var { user_id, item_id } = params;
-
-  if (!user_id || !item_id) {
-    return { success: false, message: 'user_idとitem_idは必須です' };
-  }
-
-  // ユーザー確認
-  var user = findUserById(user_id);
-  if (!user) {
-    return { success: false, message: 'ユーザーが見つかりません' };
-  }
-  if (!user.data[7]) {
-    return { success: false, message: 'このアカウントは無効化されています' };
-  }
-
-  // アイテム確認
-  var itemSheet = getSheet(SHEET.ITEMS);
-  var itemData = itemSheet.getDataRange().getValues();
-  var targetItem = null;
-  for (var i = 1; i < itemData.length; i++) {
-    if (String(itemData[i][0]) === item_id) {
-      if (!(itemData[i][6] === true || itemData[i][6] === 'TRUE' || itemData[i][6] === 'true')) {
-        return { success: false, message: 'このアイテムは現在交換不可です' };
-      }
-      targetItem = {
-        item_id:       String(itemData[i][0]),
-        item_name:     String(itemData[i][1]),
-        rarity:        String(itemData[i][2]),
-        exchange_cost: Number(itemData[i][4])
-      };
-      break;
-    }
-  }
-  if (!targetItem) {
-    return { success: false, message: '指定されたアイテムが見つかりません' };
-  }
-
-  // チケット確認
-  var currentTickets = Number(user.data[3]);
-  if (currentTickets < targetItem.exchange_cost) {
-    return {
-      success: false,
-      message: 'チケットが不足しています。必要: ' + targetItem.exchange_cost + ' 枚 / 所持: ' + currentTickets + ' 枚'
-    };
-  }
-
-  // チケットを減算
-  var newTickets = currentTickets - targetItem.exchange_cost;
-  var userSheet = getSheet(SHEET.USERS);
-  userSheet.getRange(user.rowIndex, 4).setValue(newTickets);
-
-  // exchangesシートに記録
-  var exchangeSheet = getSheet(SHEET.EXCHANGES);
-  exchangeSheet.appendRow([
-    generateId('exch'),
-    user_id,
-    targetItem.item_id,
-    targetItem.item_name,
-    targetItem.exchange_cost,
-    new Date()
-  ]);
-
-  return {
-    success: true,
-    message: targetItem.item_name + ' と交換しました！',
-    item:             targetItem,
-    tickets_spent:    targetItem.exchange_cost,
-    remaining_tickets: newTickets
-  };
+function showRandomURUser() {
+  if (!urUsers || urUsers.length === 0) return;
+  var el = document.getElementById('ur-name-text');
+  if (!el) return;
+  var u = urUsers[Math.floor(Math.random() * urUsers.length)];
+  // フェードアウト→テキスト変更→フェードイン
+  el.style.transition = 'opacity 0.4s';
+  el.style.opacity = '0';
+  setTimeout(function() {
+    el.textContent = u.username + ' さん';
+    el.style.opacity = '1';
+  }, 400);
 }
 
-/**
- * getUserData
- * ユーザーの詳細データを返す
- *
- * params: { user_id }
- */
-function getUserData(params) {
-  var { user_id } = params;
-
-  if (!user_id) {
-    return { success: false, message: 'user_idは必須です' };
-  }
-
-  var user = findUserById(user_id);
-  if (!user) {
-    return { success: false, message: 'ユーザーが見つかりません' };
-  }
-
-  // gacha_logsから履歴を取得（直近20件）
-  var logSheet = getSheet(SHEET.GACHA_LOGS);
-  var logData = logSheet.getDataRange().getValues();
-  var myLogs = [];
-  for (var i = 1; i < logData.length; i++) {
-    if (String(logData[i][1]) === user_id) {
-      myLogs.push({
-        log_id:    String(logData[i][0]),
-        item_id:   String(logData[i][2]),
-        item_name: String(logData[i][3]),
-        rarity:    String(logData[i][4]),
-        rolled_at: logData[i][5] ? logData[i][5].toString() : ''
-      });
-    }
-  }
-  var recentLogs = myLogs.slice(-20).reverse();
-
-  // exchangesから交換履歴を取得（直近10件）
-  var exSheet = getSheet(SHEET.EXCHANGES);
-  var exData = exSheet.getDataRange().getValues();
-  var myExchanges = [];
-  for (var i = 1; i < exData.length; i++) {
-    if (String(exData[i][1]) === user_id) {
-      myExchanges.push({
-        exchange_id:  String(exData[i][0]),
-        item_id:      String(exData[i][2]),
-        item_name:    String(exData[i][3]),
-        tickets_spent: Number(exData[i][4]),
-        exchanged_at: exData[i][5] ? exData[i][5].toString() : ''
-      });
-    }
-  }
-  var recentExchanges = myExchanges.slice(-10).reverse();
-
-  return {
-    success: true,
-    user: {
-      user_id:    String(user.data[0]),
-      email:      String(user.data[1]),
-      username:   String(user.data[2]),
-      tickets:    Number(user.data[3]),
-      total_rolls: Number(user.data[4]),
-      created_at: user.data[5] ? user.data[5].toString() : '',
-      last_login: user.data[6] ? user.data[6].toString() : ''
-    },
-    recent_logs:     recentLogs,
-    recent_exchanges: recentExchanges
-  };
+function setVolume(val) {
+  var v = Number(val) / 100;
+  var snd = document.getElementById('gacha-sound');
+  if (snd) snd.volume = v;
+  var icon = document.getElementById('volume-icon');
+  if (icon) icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
 }
 
-/**
- * getItems
- * 全アイテムリストを返す（交換画面用）
- */
-function getItems() {
-  var itemSheet = getSheet(SHEET.ITEMS);
-  var data = itemSheet.getDataRange().getValues();
-  var items = [];
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][6] === true || data[i][6] === 'TRUE' || data[i][6] === 'true') {
-      items.push({
-        item_id:       String(data[i][0]),
-        item_name:     String(data[i][1]),
-        rarity:        String(data[i][2]),
-        probability:   Number(data[i][3]),
-        exchange_cost: Number(data[i][4]),
-        description:   String(data[i][5])
-      });
-    }
-  }
-  return { success: true, items: items };
+function updateGachaUI() {
+  if (!currentUser) return;
+  document.getElementById('gacha-user-info').textContent = 'ログイン中: ' + currentUser.username;
+  document.getElementById('ticket-count').textContent = currentUser.tickets;
+  updateGachaBtns();
 }
 
+function updateGachaBtns() {
+  var t = currentUser ? Number(currentUser.tickets) : 0;
+  var b1  = document.getElementById('gbtn-1');
+  var b5  = document.getElementById('gbtn-5');
+  var b10 = document.getElementById('gbtn-10');
+  if (!b1) return;
+  b1.style.display  = t >= 1  ? 'inline-block' : 'none';
+  b5.style.display  = t >= 5  ? 'inline-block' : 'none';  // 5枚以上で表示
+  b10.style.display = t >= 10 ? 'inline-block' : 'none';  // 10枚以上で表示
+}
 
-// ============================================================
-// google.script.run から呼ばれるハンドラ
-// HTMLファイルから直接呼び出す
-// ============================================================
-function handleRequest(payloadStr) {
-  var params = {};
-  try {
-    params = JSON.parse(payloadStr);
-  } catch(e) {
-    return JSON.stringify({ success: false, message: 'リクエスト解析エラー' });
+function applyGachaAssets() {
+  function setImg(id, src) {
+    var e = document.getElementById(id);
+    if (e && src) e.src = src;
   }
-  var action = params.action;
-  try {
-    var result;
-    switch (action) {
-      case 'loginUser':      result = loginUser(params);      break;
-      case 'verifySerial':   result = verifySerial(params);   break;
-      case 'addSerial':      result = addSerial(params);      break;
-      case 'getTicketCount': result = getTicketCount(params); break;
-      case 'rollGacha':      result = rollGacha(params);      break;
-      case 'exchangeItem':   result = exchangeItem(params);   break;
-      case 'getUserData':    result = getUserData(params);    break;
-      case 'getItems':       result = getItems();             break;
-      case 'getURUsers':     result = getURUsers();            break;
-      case 'getInventory':   result = getInventory(params);   break;
-      case 'getRecipes':     result = getRecipes();            break;
-      case 'exchangeByItem': result = exchangeByItem(params);  break;
-      case 'getAssets':      result = getAssets();            break;
-      case 'getAsset':       result = getAsset(params);       break;
-      default:               result = { success: false, message: '不正なアクションです' };
-    }
-    return result; // オブジェクトをそのまま返す（google.script.runが自動シリアライズ）
-  } catch(err) {
-    Logger.log('handleRequest ERROR: ' + err.message);
-    return { success: false, message: 'サーバーエラー: ' + err.message };
+  setImg('img-btn1',     ASSETS.btn1);
+  setImg('img-btn5',     ASSETS.btn5);
+  setImg('img-btn10',    ASSETS.btn11);
+  setImg('trade-img',    ASSETS.trade);
+  setImg('neko-img',     ASSETS.neko);
+  setImg('ssr-lamp',     ASSETS.ssr_off);
+  setImg('ur-frame-img', ASSETS.ur_frame);
+  setImg('ticket-icon',  ASSETS.neko);
+  var snd = document.getElementById('gacha-sound');
+  if (snd && ASSETS.audio) snd.src = ASSETS.audio;
+  // 当選履歴フレーム（img要素として正しいアスペクト比で表示）
+  if (ASSETS.history_frame) {
+    var hImg = document.getElementById('history-frame-img');
+    if (hImg) { hImg.src = ASSETS.history_frame; hImg.style.display = 'block'; }
+  }
+  // チケット保有枚数フレーム
+  if (ASSETS.ticket_frame) {
+    var tImg = document.getElementById('ticket-frame-img');
+    if (tImg) { tImg.src = ASSETS.ticket_frame; tImg.style.display = 'block'; }
   }
 }
 
-// ============================================================
-// ローカルテスト用関数（GASエディタの「実行」から直接呼び出す）
-// ============================================================
-function testApi() {
-  // ログイン（初回登録）テスト
-  var result = loginUser({
-    email:    'test@example.com',
-    username: 'テストユーザー',
-    serial:   'BOOTH-0001-SAMPLE'
+function doRoll(count) {
+  ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.disabled=true;
   });
-  Logger.log('loginUser結果: ' + JSON.stringify(result));
+  msg('msg-gacha','抽選中...','');
+  // 効果音はSSR演出時のみ再生（showGachaResults内）
+
+  api({action:'rollGacha', user_id:currentUser.user_id, count:count}, function(err,data){
+    ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){
+      var e=document.getElementById(id); if(e) e.disabled=false;
+    });
+    if (err) { msg('msg-gacha',err,'err'); return; }
+    if (data.success) {
+      currentUser.tickets = data.remaining_tickets;
+      sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
+      document.getElementById('ticket-count').textContent = data.remaining_tickets;
+      updateGachaBtns();
+      msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
+      // 動画再生 → 終了後に結果表示
+      if (GACHA_VIDEO_URL) {
+        playGachaVideo(GACHA_VIDEO_URL, function() {
+          showGachaResults(data.results);
+        });
+      } else {
+        showGachaResults(data.results);
+      }
+    } else { msg('msg-gacha', data.message,'err'); }
+  });
 }
 
-function testDoPost() {
-  // doPostを直接シミュレート
-  var fakeEvent = {
-    postData: {
-      contents: JSON.stringify({
-        action:   'loginUser',
-        email:    'test2@example.com',
-        username: 'テスト2',
-        serial:   'BOOTH-0002-SAMPLE'
+function showGachaResults(results) {
+  var idle = document.getElementById('gacha-idle');
+  var disp = document.getElementById('gacha-result-display');
+  var lamp = document.getElementById('ssr-lamp');
+
+  // SSRが含まれているか先に判定
+  var hasSSR = results.some(function(item){
+    return item.rarity === 'SSR' || item.rarity === 'UR';
+  });
+
+  if (hasSSR) {
+    // SSRランプ点灯 → フラッシュ → 2秒後に結果表示
+    if (ASSETS.ssr_on && lamp) { lamp.src = ASSETS.ssr_on; lamp.classList.add('lit'); }
+    // SSR効果音を再生
+    var snd = document.getElementById('gacha-sound');
+    if (snd && snd.src) { snd.currentTime = 0; snd.play().catch(function(){}); }
+    var ov = document.getElementById('ssr-overlay');
+    if (ov) {
+      ov.style.display = 'block';
+      ov.classList.add('flash');
+      setTimeout(function(){ ov.classList.remove('flash'); ov.style.display = 'none'; }, 700);
+    }
+    // 2秒後に結果を表示
+    setTimeout(function(){
+      renderResults(results, disp, idle);
+      scheduleSSROff();
+      if (document.getElementById('ur-name-text'))
+        // UR排出時：リストに追加してur-name-textを更新
+    var newUser = { user_id: currentUser.user_id, username: currentUser.username };
+    var exists = urUsers.some(function(u){ return u.user_id === currentUser.user_id; });
+    if (!exists) urUsers.push(newUser);
+    document.getElementById('ur-name-text').textContent = currentUser.username + ' さん';
+    }, 2000);
+  } else {
+    // SSRなし：即座に結果表示
+    if (ASSETS.ssr_off && lamp) { lamp.src = ASSETS.ssr_off; lamp.classList.remove('lit'); }
+    renderResults(results, disp, idle);
+  }
+}
+
+// ガチャ動画を再生する（動画ファイルのURLを設定してから呼ぶ）
+function playGachaVideo(videoUrl, onEnded) {
+  var video = document.getElementById('gacha-video');
+  var idle  = document.getElementById('gacha-idle');
+  var disp  = document.getElementById('gacha-result-display');
+  if (!video) { if (onEnded) onEnded(); return; }
+
+  // 結果表示をリセット
+  idle.style.display  = 'none';
+  disp.style.display  = 'none';
+  disp.innerHTML = '';
+
+  video.src = videoUrl;
+  video.style.display = 'block';
+  video.load();
+  video.play().catch(function(e) {
+    console.warn('video play failed:', e);
+    video.style.display = 'none';
+    idle.style.display  = 'block';
+    if (onEnded) onEnded();
+  });
+  video.onended = function() {
+    video.style.display = 'none';
+    video.src = '';
+    if (onEnded) onEnded();
+  };
+  // 10秒でタイムアウト（動画が読み込めない場合のフォールバック）
+  var timeout = setTimeout(function() {
+    if (video.style.display !== 'none') {
+      video.pause();
+      video.style.display = 'none';
+      video.src = '';
+      if (onEnded) onEnded();
+    }
+  }, 10000);
+  video.onended = function() {
+    clearTimeout(timeout);
+    video.style.display = 'none';
+    video.src = '';
+    if (onEnded) onEnded();
+  };
+}
+
+function renderResults(results, disp, idle) {
+  idle.style.display = 'none';
+  disp.style.display = 'flex';
+  disp.innerHTML = '';
+  results.forEach(function(item){
+    var d = document.createElement('div');
+    d.className = 'result-card ' + item.rarity;
+    d.textContent = '【' + item.rarity + '】' + item.item_name;
+    disp.appendChild(d);
+    addHistory(item);
+  });
+}
+
+// SSRランプ点灯後3秒で消灯
+function scheduleSSROff() {
+  var lamp = document.getElementById('ssr-lamp');
+  if (!lamp) return;
+  setTimeout(function() {
+    lamp.classList.remove('lit');
+    if (ASSETS.ssr_off) lamp.src = ASSETS.ssr_off;
+  }, 3000);
+}
+
+function addHistory(item) {
+  var hist=document.getElementById('history-items');
+  var placeholder=hist.querySelector('span');
+  if (placeholder) hist.innerHTML='';
+  var hi=document.createElement('div');
+  hi.className='h-item '+item.rarity;
+  hi.textContent='【'+item.rarity+'】'+item.item_name;
+  hist.insertBefore(hi,hist.firstChild);
+  while (hist.children.length>10) hist.removeChild(hist.lastChild);
+}
+
+function showAddSerial() {
+  var s = document.getElementById('serial-section');
+  if (!s) { console.warn('serial-section not found'); return; }
+  s.style.display = (s.style.display === 'block') ? 'none' : 'block';
+  if (s.style.display === 'block') s.scrollIntoView({behavior:'smooth'});
+}
+
+function showExchange() {
+  var s = document.getElementById('exchange-section');
+  if (!s) { console.warn('exchange-section not found'); return; }
+  s.style.display = (s.style.display === 'block') ? 'none' : 'block';
+  if (s.style.display === 'block') { loadItems(); s.scrollIntoView({behavior:'smooth'}); }
+}
+
+
+var GAS = 'https://script.google.com/macros/s/AKfycbz35sBanr-F1legsx3hke5cM21Q0GzwGLxl_J6XxaF7oOG-ETXJsRVjheiipsapD7ToHA/exec';
+var user = null;
+var currentUser = null;
+var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off:'', frame:'', ur_frame:'', audio:'' };
+// ガチャ演出動画のURL（Driveの共有URL or 外部URL）
+// 例: 'https://drive.google.com/file/d/YOUR_FILE_ID/preview'
+var GACHA_VIDEO_URL = 'https://drive.google.com/uc?export=download&id=1Rxa_hicY-W84NYoyiFouPWON4g9jqpp-';
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
+
+function api(payload, cb) {
+  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
+  fetch(url, { redirect: 'follow' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) { cb(null, data); })
+    .catch(function(e) { cb('通信エラー: ' + e.message); });
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById('screen-'+name).classList.add('active');
+}
+
+function setLoadProgress(pct, text) {
+  var bar=document.getElementById('load-bar'), txt=document.getElementById('load-text');
+  if (bar) bar.style.width=pct+'%';
+  if (txt&&text) txt.textContent=text;
+}
+
+function hideLoading() {
+  var el=document.getElementById('screen-loading');
+  if (!el) return;
+  el.style.transition='opacity 0.4s'; el.style.opacity='0';
+  setTimeout(function(){ el.style.display='none'; },400);
+}
+
+function applyFrame() {
+  if (!ASSETS.frame) return;
+  document.querySelectorAll('.tab-card').forEach(function(c){
+    c.style.backgroundImage="url('"+ASSETS.frame+"')";
+    c.style.backgroundSize='100% 100%';
+    c.style.backgroundRepeat='no-repeat';
+  });
+}
+
+function onAssetsLoaded(cb) {
+  requestAnimationFrame(function(){
+    applyFrame();
+    positionLabels();
+    hideLoading();
+    if (cb) cb();
+  });
+}
+
+// 素材キー一覧
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
+
+function loadAssets(cb) {
+  var keys = ASSET_KEYS.slice();
+  var total = keys.length;
+  var loaded = 0;
+
+  function onLoad() {
+    loaded++;
+    setLoadProgress(Math.round(loaded / total * 95) + 5, loaded + '/' + total + ' 読込完了');
+    if (loaded >= total) {
+      setLoadProgress(100, '完了！');
+      setTimeout(function(){ onAssetsLoaded(cb); }, 200);
+    }
+  }
+
+  // 全ファイルを並列取得
+  keys.forEach(function(key) {
+    var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: key }));
+    fetch(url, { redirect: 'follow' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.success && data.dataUrl) {
+          ASSETS[data.key] = data.dataUrl;
+          if (data.key === 'frame') applyFrame();
+        } else {
+          console.warn('asset failed:', key, data ? data.message : 'null');
+        }
+        onLoad();
       })
-    }
-  };
-  var result = doPost(fakeEvent);
-  Logger.log('doPost結果: ' + result.getContent());
+      .catch(function(e) {
+        console.warn('asset fetch failed:', key, e);
+        onLoad();
+      });
+  });
 }
 
-// ============================================================
-// Drive素材フォルダから画像をbase64で取得
-// ============================================================
-const ASSETS_FOLDER_ID = '1c5CoxVoTSNJmhHpN7-zgD6VD1izQqtJi';
+function positionLabels() {
+  var front=document.querySelector('.tab-card.front');
+  var stage=document.getElementById('card-stage');
+  if (front&&stage) stage.style.height=front.offsetHeight+'px';
+}
+window.addEventListener('resize', positionLabels);
 
-const ASSET_MAP = {
-  'btn1.png':         'btn1',
-  'btn5.png':         'btn5',
-  'btn11.png':        'btn11',
-  'trade.png':        'trade',
-  'neko.png':         'neko',
-  'ssr_on.png':       'ssr_on',
-  'ssr_off.png':      'ssr_off',
-  'frame.png':        'frame',
-  'ur_frame.png':     'ur_frame',
-  'history_frame.png':'history_frame',
-  'ticket_frame.png': 'ticket_frame',
-  'キュイン！.mp3':    'audio'
+window.onload = function() {
+  positionLabels();
+  setLoadProgress(5,'接続中...');
+  loadAssets(function(){
+    var saved=sessionStorage.getItem('gachaUser');
+    if (saved){ user=JSON.parse(saved); currentUser=user; gotoGacha(); }
+  });
 };
 
-function getAssets() {
-  try {
-    var folder = DriveApp.getFolderById(ASSETS_FOLDER_ID);
-    var files  = folder.getFiles();
-    var result = {};
-    while (files.hasNext()) {
-      var file = files.next();
-      var name = file.getName();
-      var key  = ASSET_MAP[name];
-      if (!key) continue;
-      // ファイルIDからDrive表示用URLを生成
-      var fileId = file.getId();
-      var mime   = file.getMimeType();
-      // 全てbase64で返す（Drive URLはCORSでブロックされるため）
-      result[key] = 'data:' + mime + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes());
-    }
-    return { success: true, assets: result };
-  } catch(e) {
-    Logger.log('getAssets ERROR: ' + e.message);
-    return { success: false, message: e.message };
-  }
+function gotoGacha() {
+  showScreen('gacha');
+  applyFrame();
+  updateGachaUI();
+  applyGachaAssets();
+  loadItems();
+  loadURUsers();
 }
 
-// ============================================================
-// 単体素材取得（google.script.run から呼ぶ）
-// ============================================================
-function getAsset(params) {
-  var key = params.key;
-  var fileName = null;
-  for (var name in ASSET_MAP) {
-    if (ASSET_MAP[name] === key) { fileName = name; break; }
-  }
-  if (!fileName) return { success: false, message: 'key not found: ' + key };
-  try {
-    var folder = DriveApp.getFolderById(ASSETS_FOLDER_ID);
-    var files  = folder.getFilesByName(fileName);
-    if (!files.hasNext()) return { success: false, message: 'file not found: ' + fileName };
-    var file = files.next();
-    var mime = file.getMimeType();
-    var dataUrl;
-    // base64で返す
-    dataUrl = 'data:' + mime + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes());
-    return { success: true, key: key, dataUrl: dataUrl };
-  } catch(e) {
-    Logger.log('getAsset ERROR: ' + e.message);
-    return { success: false, message: e.message };
-  }
+function doLogout() {
+  sessionStorage.removeItem('gachaUser');
+  user=null; currentUser=null;
+  showScreen('login');
 }
 
-// ============================================================
-// テストデータ作成（GASエディタから手動実行）
-// ============================================================
-function createTestData() {
-  var ss = getSpreadsheet();
-
-  // テスト用シリアル追加
-  var serialSheet = ss.getSheetByName(SHEET.SERIALS);
-  serialSheet.appendRow([
-    'TEST-0001-DEBUG',  // シリアルコード
-    999999,             // チケット付与数
-    false,              // 使用済みフラグ
-    '',                 // 使用者ID
-    '',                 // 使用日時
-    new Date()          // 作成日時
-  ]);
-
-  // テスト用ユーザーを直接作成（シリアル不要で登録）
-  var userSheet = ss.getSheetByName(SHEET.USERS);
-  var userId = 'user_test_' + new Date().getTime();
-  userSheet.appendRow([
-    userId,
-    'test@test.com',
-    'テストユーザー',
-    999999,    // チケット枚数
-    0,         // 累計ガチャ回数
-    new Date(),
-    new Date(),
-    true
-  ]);
-
-  Logger.log('=== テストデータ作成完了 ===');
-  Logger.log('メールアドレス: test@test.com');
-  Logger.log('ユーザー名: テストユーザー');
-  Logger.log('チケット: 999999枚');
-  Logger.log('テスト用シリアル: TEST-0001-DEBUG（チケット999999枚）');
+function switchTab(name) {
+  var inEl=document.getElementById(name==='new'?'card-new':'card-exist');
+  var outEl=document.getElementById(name==='new'?'card-exist':'card-new');
+  if (!inEl||!outEl||inEl.classList.contains('front')) return;
+  inEl.className='tab-card front'; outEl.className='tab-card back';
+  var tN=document.getElementById('tbtn-new'), tE=document.getElementById('tbtn-exist');
+  if (tN&&tE){ tN.className=name==='new'?'tab-btn-item active':'tab-btn-item'; tE.className=name==='exist'?'tab-btn-item active':'tab-btn-item'; }
+  var bR=document.getElementById('btn-reg'), bL=document.getElementById('btn-login');
+  if (bR&&bL){ bR.style.display=name==='new'?'inline-block':'none'; bL.style.display=name==='exist'?'inline-block':'none'; }
+  msg('msg-login','','');
 }
 
-// ============================================================
-// フォルダ内ファイル一覧確認用（GASエディタから実行）
-// ============================================================
-function listFolderFiles() {
-  var folder = DriveApp.getFolderById(ASSETS_FOLDER_ID);
-  Logger.log('フォルダ名: ' + folder.getName());
-  Logger.log('フォルダID: ' + ASSETS_FOLDER_ID);
-  var files = folder.getFiles();
-  var count = 0;
-  while (files.hasNext()) {
-    var f = files.next();
-    Logger.log('ファイル: [' + f.getName() + '] ID=' + f.getId() + ' MIME=' + f.getMimeType());
-    count++;
-  }
-  Logger.log('合計: ' + count + ' ファイル');
-  
-  // サブフォルダも確認
-  var subs = folder.getFolders();
-  while (subs.hasNext()) {
-    var sub = subs.next();
-    Logger.log('サブフォルダ: [' + sub.getName() + '] ID=' + sub.getId());
-  }
+function msg(id,text,cls){ var el=document.getElementById(id); if(!el)return; el.textContent=text; el.className='msg '+(cls||''); }
+function esc(s) {
+  var d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML;
 }
 
-// ============================================================
-// 所持アイテム管理
-// ============================================================
-
-// ガチャ結果をインベントリに追加（rollGacha内から呼ぶ）
-function addToInventory(userId, items) {
-  var sheet = getSheet(SHEET.INVENTORY);
-  var data  = sheet.getDataRange().getValues();
-
-  items.forEach(function(item) {
-    var found = false;
-    for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === userId && String(data[i][1]) === item.item_id) {
-        // 既存行の所持数を加算
-        sheet.getRange(i + 1, 5).setValue(Number(data[i][4]) + 1);
-        data[i][4] = Number(data[i][4]) + 1;
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      // 新規追加
-      var newRow = [userId, item.item_id, item.item_name, item.rarity, 1];
-      sheet.appendRow(newRow);
-      data.push(newRow);
-    }
+function doRegister() {
+  var email=document.getElementById('reg-email').value.trim();
+  var name=document.getElementById('reg-name').value.trim();
+  var serial=document.getElementById('reg-serial').value.trim();
+  if (!email||!name||!serial){ msg('msg-login','全項目を入力してください','err'); return; }
+  var btn=document.getElementById('btn-reg'); btn.disabled=true; msg('msg-login','登録中...','');
+  api({action:'loginUser',email:email,username:name,serial:serial},function(err,data){
+    btn.disabled=false;
+    if (err){ msg('msg-login',err,'err'); return; }
+    if (data.success){ user=data.user; currentUser=user; sessionStorage.setItem('gachaUser',JSON.stringify(user)); gotoGacha(); }
+    else { msg('msg-login',data.message,'err'); }
   });
 }
 
-// 所持アイテム一覧取得
-function getInventory(params) {
-  var userId = params.user_id;
-  if (!userId) return { success: false, message: 'user_idは必須です' };
-
-  var user = findUserById(userId);
-  if (!user) return { success: false, message: 'ユーザーが見つかりません' };
-
-  var sheet = getSheet(SHEET.INVENTORY);
-  var data  = sheet.getDataRange().getValues();
-  var items = [];
-  for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === userId && Number(data[i][4]) > 0) {
-      items.push({
-        item_id:   String(data[i][1]),
-        item_name: String(data[i][2]),
-        rarity:    String(data[i][3]),
-        count:     Number(data[i][4])
-      });
-    }
-  }
-  return { success: true, inventory: items };
-}
-
-// ============================================================
-// 交換レシピ取得
-// ============================================================
-function getRecipes() {
-  var sheet = getSheet(SHEET.RECIPES);
-  var data  = sheet.getDataRange().getValues();
-  var recipes = [];
-  for (var i = 1; i < data.length; i++) {
-    if (data[i][7] === true || data[i][7] === 'TRUE' || data[i][7] === 'true') {
-      recipes.push({
-        recipe_id:       String(data[i][0]),
-        cost_rarity:     String(data[i][1]),
-        cost_count:      Number(data[i][2]),
-        reward_item_id:  String(data[i][3]),
-        reward_item_name:String(data[i][4]),
-        reward_rarity:   String(data[i][5]),
-        description:     String(data[i][6])
-      });
-    }
-  }
-  return { success: true, recipes: recipes };
-}
-
-// ============================================================
-// アイテム交換（アイテム→アイテム）
-// ============================================================
-function exchangeByItem(params) {
-  var userId   = params.user_id;
-  var recipeId = params.recipe_id;
-
-  if (!userId || !recipeId) return { success: false, message: 'user_idとrecipe_idは必須です' };
-
-  var user = findUserById(userId);
-  if (!user) return { success: false, message: 'ユーザーが見つかりません' };
-
-  // レシピ取得
-  var recipeSheet = getSheet(SHEET.RECIPES);
-  var recipeData  = recipeSheet.getDataRange().getValues();
-  var recipe = null;
-  for (var i = 1; i < recipeData.length; i++) {
-    if (String(recipeData[i][0]) === recipeId) {
-      recipe = {
-        recipe_id:        String(recipeData[i][0]),
-        cost_rarity:      String(recipeData[i][1]),
-        cost_count:       Number(recipeData[i][2]),
-        reward_item_id:   String(recipeData[i][3]),
-        reward_item_name: String(recipeData[i][4]),
-        reward_rarity:    String(recipeData[i][5])
-      };
-      break;
-    }
-  }
-  if (!recipe) return { success: false, message: 'レシピが見つかりません' };
-
-  // 所持アイテム確認
-  var invSheet = getSheet(SHEET.INVENTORY);
-  var invData  = invSheet.getDataRange().getValues();
-
-  // 消費レア度のアイテムを所持数の多い順に取得
-  var costItems = [];
-  for (var j = 1; j < invData.length; j++) {
-    if (String(invData[j][0]) === userId &&
-        String(invData[j][3]) === recipe.cost_rarity &&
-        Number(invData[j][4]) > 0) {
-      costItems.push({ rowIndex: j + 1, count: Number(invData[j][4]), item_id: String(invData[j][1]) });
-    }
-  }
-
-  // 合計所持数チェック
-  var totalCount = costItems.reduce(function(s, i) { return s + i.count; }, 0);
-  if (totalCount < recipe.cost_count) {
-    return {
-      success: false,
-      message: recipe.cost_rarity + 'のアイテムが' + recipe.cost_count + '個必要です（現在:' + totalCount + '個）'
-    };
-  }
-
-  // 消費処理（所持数を減らす）
-  var remaining = recipe.cost_count;
-  for (var k = 0; k < costItems.length && remaining > 0; k++) {
-    var consume = Math.min(costItems[k].count, remaining);
-    invSheet.getRange(costItems[k].rowIndex, 5).setValue(costItems[k].count - consume);
-    remaining -= consume;
-  }
-
-  // 報酬アイテムを追加
-  addToInventory(userId, [{
-    item_id:   recipe.reward_item_id,
-    item_name: recipe.reward_item_name,
-    rarity:    recipe.reward_rarity
-  }]);
-
-  // 交換履歴に記録
-  var exchSheet = getSheet(SHEET.EXCHANGES);
-  exchSheet.appendRow([
-    generateId('exch'),
-    userId,
-    recipe.reward_item_id,
-    recipe.reward_item_name,
-    0, // チケット消費なし
-    new Date()
-  ]);
-
-  return {
-    success: true,
-    message: recipe.cost_rarity + '×' + recipe.cost_count + '枚を消費して' + recipe.reward_item_name + 'を獲得しました！',
-    reward: {
-      item_id:   recipe.reward_item_id,
-      item_name: recipe.reward_item_name,
-      rarity:    recipe.reward_rarity
-    }
-  };
-}
-
-// ============================================================
-// シリアル追加テスト（GASエディタから手動実行）
-// ============================================================
-function testAddSerial() {
-  // テスト設定
-  var TEST_EMAIL  = 'test@test.com';
-  var TEST_SERIAL = 'TEST-SERIAL-' + new Date().getTime(); // ユニークなシリアル
-  var TEST_TICKETS = 10;
-
-  Logger.log('=== シリアル追加テスト開始 ===');
-
-  // 1. テスト用シリアルをシリアルシートに追加
-  var ss = getSpreadsheet();
-  var serialSheet = ss.getSheetByName(SHEET.SERIALS);
-  serialSheet.appendRow([
-    TEST_SERIAL,
-    TEST_TICKETS,
-    false,
-    '',
-    '',
-    new Date()
-  ]);
-  Logger.log('シリアル作成: ' + TEST_SERIAL + '（' + TEST_TICKETS + '枚）');
-
-  // 2. テストユーザーを取得
-  var user = findUserByEmail(TEST_EMAIL);
-  if (!user) {
-    Logger.log('ERROR: テストユーザーが見つかりません: ' + TEST_EMAIL);
-    Logger.log('先に createTestData() を実行してください');
-    return;
-  }
-  Logger.log('ユーザー確認: ' + user.username + '（現在' + user.tickets + '枚）');
-
-  var ticketsBefore = Number(user.tickets);
-
-  // 3. addSerial を呼び出してテスト
-  var result = addSerial({
-    user_id: user.user_id,
-    serial:  TEST_SERIAL
+function doLogin() {
+  var email=document.getElementById('login-email').value.trim();
+  var name=document.getElementById('login-name').value.trim();
+  if (!email||!name){ msg('msg-login','メールアドレスとユーザー名を入力してください','err'); return; }
+  var btn=document.getElementById('btn-login'); btn.disabled=true; msg('msg-login','ログイン中...','');
+  api({action:'loginUser',email:email,username:name},function(err,data){
+    btn.disabled=false;
+    if (err){ msg('msg-login',err,'err'); return; }
+    if (data.success){ user=data.user; currentUser=user; sessionStorage.setItem('gachaUser',JSON.stringify(user)); gotoGacha(); }
+    else { msg('msg-login',data.message,'err'); }
   });
-  Logger.log('addSerial結果: ' + JSON.stringify(result));
+}
 
-  // 4. 結果検証
-  if (result.success) {
-    var ticketsAfter = Number(result.new_ticket_count);
-    var diff = ticketsAfter - ticketsBefore;
-    if (diff === TEST_TICKETS) {
-      Logger.log('✅ テスト成功！チケット +' + diff + '枚（' + ticketsBefore + ' → ' + ticketsAfter + '）');
+function doAddSerial() {
+  var serial=document.getElementById('serial-input').value.trim();
+  if (!serial){ msg('msg-serial','シリアルコードを入力してください','err'); return; }
+  msg('msg-serial','確認中...','');
+  api({action:'addSerial',user_id:currentUser.user_id,serial:serial},function(err,data){
+    if (err){ msg('msg-serial',err,'err'); return; }
+    if (data.success){
+      currentUser.tickets=data.new_ticket_count;
+      sessionStorage.setItem('gachaUser',JSON.stringify(currentUser));
+      document.getElementById('ticket-count').textContent=data.new_ticket_count;
+      updateGachaBtns();
+      document.getElementById('serial-input').value='';
+      msg('msg-serial',data.message,'ok');
+    } else { msg('msg-serial',data.message,'err'); }
+  });
+}
+
+function loadItems() {
+  var el = document.getElementById('item-list');
+  if (!el) return;
+  el.innerHTML = '<p style="font-size:13px;color:#999;">読み込み中...</p>';
+
+  var recipes = null, inventory = null;
+
+  function tryRender() {
+    if (recipes === null || inventory === null) return;
+    var rarityCount = {};
+    inventory.forEach(function(item) {
+      rarityCount[item.rarity] = (rarityCount[item.rarity] || 0) + item.count;
+    });
+    var html = '<table><thead><tr><th>交換内容</th><th>所持</th><th>必要</th><th></th></tr></thead><tbody>';
+    recipes.forEach(function(r) {
+      var have = rarityCount[r.cost_rarity] || 0;
+      var ok = have >= r.cost_count;
+      var btnAttr = ok ? '' : ' disabled';
+      html += '<tr>'
+        + '<td>' + r.description + '</td>'
+        + '<td>' + have + '個</td>'
+        + '<td>' + r.cost_count + '個</td>'
+        + '<td><button class="exchange-btn"' + btnAttr
+        + ' data-recipe-id="' + r.recipe_id + '"'
+        + ' data-description="' + r.description + '"'
+        + ' onclick="handleExchange(this)">交換</button></td>'
+        + '</tr>';
+    });
+    el.innerHTML = html + '</tbody></table>';
+  }
+
+  api({ action: 'getRecipes' }, function(err, data) {
+    recipes = (data && data.success) ? data.recipes : [];
+    tryRender();
+  });
+  api({ action: 'getInventory', user_id: currentUser.user_id }, function(err, data) {
+    inventory = (data && data.success) ? data.inventory : [];
+    tryRender();
+  });
+}
+
+function handleExchange(btn) {
+  var recipeId   = btn.getAttribute('data-recipe-id');
+  var description = btn.getAttribute('data-description');
+  doExchangeByItem(recipeId, description);
+}
+
+function doExchangeByItem(recipeId, description) {
+  if (!confirm(description + '\nこの交換を実行しますか？')) return;
+  msg('msg-exchange', '交換中...', '');
+  api({ action: 'exchangeByItem', user_id: currentUser.user_id, recipe_id: recipeId }, function(err, data) {
+    if (err) { msg('msg-exchange', err, 'err'); return; }
+    if (data.success) {
+      msg('msg-exchange', data.message, 'ok');
+      loadItems();
     } else {
-      Logger.log('❌ チケット増加数が不正: 期待=' + TEST_TICKETS + ' 実際=' + diff);
+      msg('msg-exchange', data.message, 'err');
     }
-  } else {
-    Logger.log('❌ テスト失敗: ' + result.message);
-  }
-
-  // 5. 重複使用テスト
-  Logger.log('--- 重複使用テスト ---');
-  var result2 = addSerial({
-    user_id: user.user_id,
-    serial:  TEST_SERIAL
   });
-  if (!result2.success) {
-    Logger.log('✅ 重複使用を正しく拒否: ' + result2.message);
-  } else {
-    Logger.log('❌ 重複使用が通ってしまった！');
-  }
+}
 
-  // 6. 存在しないシリアルテスト
-  Logger.log('--- 無効シリアルテスト ---');
-  var result3 = addSerial({
-    user_id: user.user_id,
-    serial:  'INVALID-SERIAL-999'
+function doExchange(itemId,itemName,cost) {
+  if (!confirm(itemName+' と交換しますか？（'+cost+'枚消費）')) return;
+  msg('msg-exchange','交換中...','');
+  api({action:'exchangeItem',user_id:currentUser.user_id,item_id:itemId},function(err,data){
+    if (err){ msg('msg-exchange',err,'err'); return; }
+    if (data.success){
+      currentUser.tickets=data.remaining_tickets;
+      sessionStorage.setItem('gachaUser',JSON.stringify(currentUser));
+      document.getElementById('ticket-count').textContent=data.remaining_tickets;
+      updateGachaBtns();
+      msg('msg-exchange',data.message+' ／ 残り '+data.remaining_tickets+'枚','ok');
+    } else { msg('msg-exchange',data.message,'err'); }
   });
-  if (!result3.success) {
-    Logger.log('✅ 無効シリアルを正しく拒否: ' + result3.message);
-  } else {
-    Logger.log('❌ 無効シリアルが通ってしまった！');
-  }
-
-  Logger.log('=== テスト完了 ===');
 }
 
-// 指定枚数のシリアルをまとめて生成する便利関数
-function generateSerials(count, ticketsPerSerial) {
-  count          = count          || 10;
-  ticketsPerSerial = ticketsPerSerial || 1;
-
-  var ss = getSpreadsheet();
-  var sheet = ss.getSheetByName(SHEET.SERIALS);
-  var rows = [];
-  var prefix = 'BOOTH-' + Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd') + '-';
-
-  for (var i = 0; i < count; i++) {
-    var code = prefix + String(i + 1).padStart(4, '0') + '-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-    rows.push([code, ticketsPerSerial, false, '', '', new Date()]);
-  }
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, 6).setValues(rows);
-
-  Logger.log('シリアル ' + count + '件 生成完了（各' + ticketsPerSerial + '枚）');
-  rows.forEach(function(r) { Logger.log(r[0]); });
-}
-
-// ============================================================
-// URを出したユーザー一覧取得
-// ============================================================
-function getURUsers() {
-  try {
-    var logSheet = getSheet(SHEET.GACHA_LOGS);
-    var data = logSheet.getDataRange().getValues();
-    var urUsers = [];
-    var seen = {};
-
-    for (var i = 1; i < data.length; i++) {
-      var userId = String(data[i][1]);
-      var rarity = String(data[i][4]);
-      if (rarity !== 'UR') continue;
-
-      // ユーザー名を取得
-      var user = findUserById(userId);
-      if (!user) continue;
-      var name = user.username;
-
-      // 重複除去（同じユーザーは1件のみ）
-      if (!seen[userId]) {
-        seen[userId] = true;
-        urUsers.push({ user_id: userId, username: name });
-      }
-    }
-    return { success: true, users: urUsers };
-  } catch(e) {
-    Logger.log('getURUsers ERROR: ' + e.message);
-    return { success: false, message: e.message };
-  }
-}
-    
+</script>
+</body>
+</html>
