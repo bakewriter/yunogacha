@@ -841,27 +841,14 @@ function showGachaResults(results) {
 
 // ガチャ動画を再生する（動画ファイルのURLを設定してから呼ぶ）
 function fetchAndPlayVideo(onEnded) {
-  var url = GAS + '?video=1';
-  // ローディング表示
-  var idle = document.getElementById('gacha-idle');
-  if (idle) { idle.style.display = 'block'; idle.textContent = '動画読み込み中...'; }
-
-  fetch(url, { redirect: 'follow' })
-    .then(function(r) { return r.text(); })
-    .then(function(dataUrl) {
-      if (!dataUrl || !dataUrl.startsWith('data:')) {
-        console.warn('video load failed:', dataUrl.slice(0,100));
-        if (idle) { idle.textContent = 'ガチャを引いてね！'; }
-        if (onEnded) onEnded();
-        return;
-      }
-      playGachaVideo(dataUrl, onEnded);
-    })
-    .catch(function(e) {
-      console.warn('fetchAndPlayVideo error:', e);
-      if (idle) { idle.style.display = 'block'; idle.textContent = 'ガチャを引いてね！'; }
-      if (onEnded) onEnded();
-    });
+  // キャッシュ済みならすぐ再生
+  if (ASSETS.gacha_video) {
+    playGachaVideo(ASSETS.gacha_video, onEnded);
+    return;
+  }
+  // 未キャッシュの場合はスキップして結果表示
+  console.warn('gacha_video not cached yet');
+  if (onEnded) onEnded();
 }
 
 function playGachaVideo(videoUrl, onEnded) {
@@ -962,7 +949,7 @@ var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off
 // ガチャ演出動画のURL（Driveの共有URL or 外部URL）
 // 例: 'https://drive.google.com/file/d/YOUR_FILE_ID/preview'
 var GACHA_VIDEO_URL = 'GAS_PROXY'; // GASプロキシ経由で動画を取得
-var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio','gacha_video'];
 
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
@@ -1009,7 +996,7 @@ function onAssetsLoaded(cb) {
 }
 
 // 素材キー一覧
-var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio','gacha_video'];
 
 function loadAssets(cb) {
   var keys = ASSET_KEYS.slice();
