@@ -161,8 +161,8 @@
     }
     #history-box {
       position: absolute;
-      top: 17%; bottom: 14%;
-      left: 12%; right: 12%;
+      top: 22%; bottom: 15%;
+      left: 13%; right: 13%;
       z-index: 1;
       background: transparent;
       border: none;
@@ -187,26 +187,27 @@
     }
     #ticket-box {
       position: absolute;
-      top: 28%; bottom: 24%;
-      left: 42%; right: 12%;
+      top: 25%; bottom: 20%;
+      left: 38%; right: 8%;
       z-index: 1;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      align-items: flex-start;
       gap: 0;
-      padding: 0 4px;
+      padding: 0 8px;
       background: transparent;
       border: none;
     }
-    .tk-label { font-size: 11px; color: #fff; font-weight: bold; letter-spacing: 0.05em; }
+    .tk-label { display: none; } /* 画像内に含まれるため非表示 */
     .tk-count-wrap { display: flex; align-items: baseline; gap: 2px; }
     .tk-count { font-size: 22px; color: #fff; font-weight: bold; line-height: 1; }
     .tk-unit  { font-size: 11px; color: #fff; }
 
     /* ネコキャラ */
     #neko-wrap {
-      max-width: 180px; /* 完成図に合わせたサイズ */
-      margin-left: auto;
+      max-width: 160px;
+      margin-top: -8px; /* ticket-wrapに近づける */
     }
     #neko-wrap img {
       width: 100%;
@@ -637,7 +638,7 @@
   </div><!-- /gacha-wrap -->
 
   <!-- シリアル追加（折りたたみ） -->
-  <div id="serial-section">
+  <div id="serial-section" style="display:none;">
     <h2>シリアルコード追加</h2>
     <input type="text" id="serial-input" placeholder="BOOTHの注文番号">
     <button class="add-btn" onclick="doAddSerial()">追加する</button>
@@ -645,7 +646,7 @@
   </div>
 
   <!-- 交換所（折りたたみ） -->
-  <div id="exchange-section">
+  <div id="exchange-section" style="display:none;">
     <h2>アイテム交換</h2>
     <div id="item-list"></div>
     <div id="msg-exchange" class="msg"></div>
@@ -816,15 +817,17 @@ function addHistory(item) {
 }
 
 function showAddSerial() {
-  var s=document.getElementById('serial-section');
-  s.style.display = s.style.display==='none'?'block':'none';
-  if (s.style.display==='block') s.scrollIntoView({behavior:'smooth'});
+  var s = document.getElementById('serial-section');
+  if (!s) { console.warn('serial-section not found'); return; }
+  s.style.display = (s.style.display === 'block') ? 'none' : 'block';
+  if (s.style.display === 'block') s.scrollIntoView({behavior:'smooth'});
 }
 
 function showExchange() {
-  var s=document.getElementById('exchange-section');
-  s.style.display = s.style.display==='none'?'block':'none';
-  if (s.style.display==='block') { loadItems(); s.scrollIntoView({behavior:'smooth'}); }
+  var s = document.getElementById('exchange-section');
+  if (!s) { console.warn('exchange-section not found'); return; }
+  s.style.display = (s.style.display === 'block') ? 'none' : 'block';
+  if (s.style.display === 'block') { loadItems(); s.scrollIntoView({behavior:'smooth'}); }
 }
 </script>
 <script>
@@ -1012,15 +1015,54 @@ function doAddSerial() {
 }
 
 function loadItems() {
-  var el=document.getElementById('item-list'); if(!el)return;
-  api({action:'getItems'},function(err,data){
-    if (err||!data.success){ el.textContent='読み込みエラー'; return; }
-    var html='<table><thead><tr><th>アイテム名</th><th>レア度</th><th>コスト</th><th></th></tr></thead><tbody>';
-    data.items.forEach(function(item){
-      html+='<tr><td>'+esc(item.item_name)+'</td><td>'+esc(item.rarity)+'</td><td>'+item.exchange_cost+'枚</td>'
-        +'<td><button class="exchange-btn" onclick="doExchange(\''+esc(item.item_id)+'\',\''+esc(item.item_name)+'\','+Number(item.exchange_cost)+')">交換</button></td></tr>';
+  var el = document.getElementById('item-list');
+  if (!el) return;
+  el.innerHTML = '<p style="font-size:13px;color:#999;">読み込み中...</p>';
+
+  var recipes = null, inventory = null;
+
+  function tryRender() {
+    if (recipes === null || inventory === null) return;
+    var rarityCount = {};
+    inventory.forEach(function(item) {
+      rarityCount[item.rarity] = (rarityCount[item.rarity] || 0) + item.count;
     });
-    el.innerHTML=html+'</tbody></table>';
+    var html = '<table><thead><tr><th>交換内容</th><th>所持</th><th>必要</th><th></th></tr></thead><tbody>';
+    recipes.forEach(function(r) {
+      var have = rarityCount[r.cost_rarity] || 0;
+      var ok = have >= r.cost_count;
+      html += '<tr>'
+        + '<td>' + esc(r.description) + '</td>'
+        + '<td>' + have + '個</td>'
+        + '<td>' + r.cost_count + '個</td>'
+        + '<td><button class="exchange-btn"' + (ok ? '' : ' disabled') + ' onclick="doExchangeByItem('' + esc(r.recipe_id) + '','' + esc(r.description) + '')">交換</button></td>'
+        + '</tr>';
+    });
+    el.innerHTML = html + '</tbody></table>';
+  }
+
+  api({ action: 'getRecipes' }, function(err, data) {
+    recipes = (data && data.success) ? data.recipes : [];
+    tryRender();
+  });
+  api({ action: 'getInventory', user_id: currentUser.user_id }, function(err, data) {
+    inventory = (data && data.success) ? data.inventory : [];
+    tryRender();
+  });
+}
+
+function doExchangeByItem(recipeId, description) {
+  if (!confirm(description + '
+この交換を実行しますか？')) return;
+  msg('msg-exchange', '交換中...', '');
+  api({ action: 'exchangeByItem', user_id: currentUser.user_id, recipe_id: recipeId }, function(err, data) {
+    if (err) { msg('msg-exchange', err, 'err'); return; }
+    if (data.success) {
+      msg('msg-exchange', data.message, 'ok');
+      loadItems();
+    } else {
+      msg('msg-exchange', data.message, 'err');
+    }
   });
 }
 
