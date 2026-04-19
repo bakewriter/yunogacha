@@ -1038,11 +1038,15 @@ function loadItems() {
     recipes.forEach(function(r) {
       var have = rarityCount[r.cost_rarity] || 0;
       var ok = have >= r.cost_count;
+      var btnAttr = ok ? '' : ' disabled';
       html += '<tr>'
-        + '<td>' + esc(r.description) + '</td>'
+        + '<td>' + r.description + '</td>'
         + '<td>' + have + '個</td>'
         + '<td>' + r.cost_count + '個</td>'
-        + '<td><button class="exchange-btn"' + (ok ? '' : ' disabled') + ' onclick="doExchangeByItem(\'' + esc(r.recipe_id) + '\',\'' + esc(r.description) + '\')">交換</button></td>'
+        + '<td><button class="exchange-btn"' + btnAttr
+        + ' data-recipe-id="' + r.recipe_id + '"'
+        + ' data-description="' + r.description + '"'
+        + ' onclick="handleExchange(this)">交換</button></td>'
         + '</tr>';
     });
     el.innerHTML = html + '</tbody></table>';
@@ -1058,9 +1062,14 @@ function loadItems() {
   });
 }
 
+function handleExchange(btn) {
+  var recipeId   = btn.getAttribute('data-recipe-id');
+  var description = btn.getAttribute('data-description');
+  doExchangeByItem(recipeId, description);
+}
+
 function doExchangeByItem(recipeId, description) {
-  if (!confirm(description + '
-この交換を実行しますか？')) return;
+  if (!confirm(description + '\nこの交換を実行しますか？')) return;
   msg('msg-exchange', '交換中...', '');
   api({ action: 'exchangeByItem', user_id: currentUser.user_id, recipe_id: recipeId }, function(err, data) {
     if (err) { msg('msg-exchange', err, 'err'); return; }
