@@ -154,39 +154,28 @@
     /* 当選履歴 */
     #history-wrap {
       position: relative;
+      width: 100%;
     }
     #history-frame-img {
-      width: 100%;
-      height: auto; /* アスペクト比を維持 */
-      display: block;
-      object-fit: contain;
+      width: 100%; height: auto; display: block;
     }
     #history-box {
       position: absolute;
-      top: 17%; left: 12.5%; right: 12.3%; bottom: 14%;
+      top: 17%; bottom: 14%;
+      left: 12%; right: 12%;
       z-index: 1;
       background: transparent;
       border: none;
-      padding: 4px 6px;
+      padding: 2px 4px;
       overflow-y: auto;
     }
-    .box-title {
-      font-size: 13px; font-weight: bold;
-      color: #ff80b0; text-align: center; margin-bottom: 4px;
-    }
-    #history-items { font-size: 12px; min-height: 60px; }
-    .h-item { padding: 3px 8px; margin-bottom: 3px; border-radius: 6px; font-weight: bold; }
+    .box-title { display: none; } /* タイトルは画像内に含まれる */
+    #history-items { font-size: 12px; }
+    .h-item { padding: 2px 6px; margin-bottom: 2px; border-radius: 6px; font-weight: bold; }
     .h-item.SSR { background:#fff0f6; color:#e05; }
     .h-item.SR  { background:#f0e0ff; color:#808; }
     .h-item.R   { background:#e0f0ff; color:#048; }
     .h-item.N   { background:#f5f5f5; color:#888; }
-
-
-
-    .tk-label { font-size: 11px; color: #fff; font-weight: bold; letter-spacing: 0.05em; }
-    .tk-count-wrap { display: flex; align-items: baseline; gap: 2px; }
-    .tk-count { font-size: 30px; color: #fff; font-weight: bold; line-height: 1; }
-    .tk-unit  { font-size: 13px; color: #fff; }
 
     /* チケット残数 */
     #ticket-wrap {
@@ -194,14 +183,10 @@
       width: 100%;
     }
     #ticket-frame-img {
-      width: 100%;
-      height: auto;
-      display: block;
-      object-fit: contain;
+      width: 100%; height: auto; display: block;
     }
     #ticket-box {
       position: absolute;
-      /* 右側ピンクエリアに合わせて配置 */
       top: 28%; bottom: 24%;
       left: 42%; right: 12%;
       z-index: 1;
@@ -210,17 +195,19 @@
       justify-content: center;
       gap: 0;
       padding: 0 4px;
+      background: transparent;
+      border: none;
     }
-    .tk-label {
-      font-size: 11px; color: #fff;
-      font-weight: bold; letter-spacing: 0.05em;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
-    }
+    .tk-label { font-size: 11px; color: #fff; font-weight: bold; letter-spacing: 0.05em; }
     .tk-count-wrap { display: flex; align-items: baseline; gap: 2px; }
-    .tk-count { font-size: 26px; color: #fff; font-weight: bold; line-height: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-    .tk-unit  { font-size: 12px; color: #fff; }
+    .tk-count { font-size: 22px; color: #fff; font-weight: bold; line-height: 1; }
+    .tk-unit  { font-size: 11px; color: #fff; }
 
     /* ネコキャラ */
+    #neko-wrap {
+      max-width: 180px; /* 完成図に合わせたサイズ */
+      margin-left: auto;
+    }
     #neko-wrap img {
       width: 100%;
       object-fit: contain;
@@ -848,7 +835,7 @@ var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off
 // ガチャ演出動画のURL（Driveの共有URL or 外部URL）
 // 例: 'https://drive.google.com/file/d/YOUR_FILE_ID/preview'
 var GACHA_VIDEO_URL = '';
-var ASSET_KEYS = ['btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','frame','ur_frame','history_frame','ticket_frame'];
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame'];
 
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
@@ -895,7 +882,7 @@ function onAssetsLoaded(cb) {
 }
 
 // 素材キー一覧
-var ASSET_KEYS = ['btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','frame','ur_frame','history_frame','ticket_frame'];
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame'];
 
 function loadAssets(cb) {
   var keys = ASSET_KEYS.slice();
@@ -917,6 +904,8 @@ function loadAssets(cb) {
       .then(function(data) {
         if (data && data.success && data.dataUrl) {
           ASSETS[data.key] = data.dataUrl;
+          // frameが読み込まれたら即座に適用
+          if (data.key === 'frame') applyFrame();
         } else {
           console.warn('asset failed:', key, data ? data.message : 'null');
         }
