@@ -161,7 +161,7 @@
     }
     #history-box {
       position: absolute;
-      top: 22%; bottom: 15%;
+      top: 24%; bottom: 12%;
       left: 13%; right: 13%;
       z-index: 1;
       background: transparent;
@@ -187,8 +187,8 @@
     }
     #ticket-box {
       position: absolute;
-      top: 25%; bottom: 20%;
-      left: 38%; right: 8%;
+      top: 32%; bottom: 18%;
+      left: 40%; right: 8%;
       z-index: 1;
       display: flex;
       flex-direction: column;
@@ -206,14 +206,16 @@
 
     /* ネコキャラ */
     #neko-wrap {
-      max-width: 160px;
-      margin-top: -8px; /* ticket-wrapに近づける */
+      width: 100%;
+      margin-top: 4px;
     }
     #neko-wrap img {
-      width: 100%;
+      width: 85%;
+      max-width: 200px;
       object-fit: contain;
       cursor: pointer;
       transition: transform 0.15s;
+      display: block;
     }
     #neko-wrap img:hover { transform: scale(1.04); }
 
@@ -624,8 +626,6 @@
             <span class="tk-count" id="ticket-count">-</span>
             <span class="tk-unit">枚</span>
           </div>
-        </div>
-      </div>
         </div>
       </div>
 
