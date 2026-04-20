@@ -215,7 +215,7 @@
       }
       #trade-wrap, #ssr-wrap { }
       #ur-wrap { grid-column: 1 / -1; }
-    } /* end @media 600px */
+    } /* end @media (max-width: 600px) */
     /* ===== 左カラム（PC） ===== */
     #ur-wrap-inner {
       position: relative;
@@ -247,7 +247,7 @@
 
       /* 中央カラム */
       .gacha-center { order: 1; }
-      #gacha-stage { border-radius: 14px; }
+      #gacha-stage { border-radius: 14px; position: relative; overflow: hidden; }
 
       /* ガチャボタン */
       #gacha-btns { gap: 6px; }
@@ -622,7 +622,7 @@
       </div>
 
       <!-- URを出したユーザー -->
-      <div id="ur-wrap">
+      <div id="ur-wrap" style="position:relative;">
         <div id="ur-wrap-inner">
           <img id="ur-frame-img" src="" alt="" style="width:100%;height:auto;display:block;">
           <div id="ur-name-text">－</div>
