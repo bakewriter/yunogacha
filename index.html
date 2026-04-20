@@ -686,6 +686,20 @@
     #yamake-walker.sit .creature-body-g { animation: none; }
     #gaua-walker.sit .creature-body-g { animation: none; }
     #mure-walker.sit   .creature-body-g { animation: none; }
+
+    /* ===== フルスクリーン動画オーバーレイ ===== */
+    #fullscreen-video-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9000;
+      background: #000;
+    }
+    #fullscreen-video-overlay video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
   </style>
 </head>
 <body>
@@ -938,14 +952,31 @@
       </div>
     </div>
     <div class="admin-section">
-      <h2>ガチャ動画設定</h2>
-      <p style="font-size:13px;color:#888;margin:0 0 10px;">Google DriveのファイルIDを入力してください<br>（共有URL: drive.google.com/file/d/<b>【ここがID】</b>/view）</p>
+      <h2>通常ガチャ演出動画</h2>
+      <p style="font-size:13px;color:#888;margin:0 0 10px;">ガチャを引くたびに再生される動画（ステージ内）<br>Google DriveのファイルIDを入力（共有URL: drive.google.com/file/d/<b>【ここ】</b>/view）</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <input type="text" id="gacha-video-id-input" placeholder="GoogleDriveファイルID"
           style="padding:6px 12px;border:1px solid #ddd;border-radius:16px;font-size:13px;width:300px;">
         <button class="admin-refresh-btn" style="margin:0;" onclick="adminSaveVideoId()">保存する</button>
       </div>
       <div id="current-video-id" style="font-size:11px;color:#aaa;margin-top:6px;"></div>
+    </div>
+    <div class="admin-section">
+      <h2>フルスクリーン演出動画</h2>
+      <p style="font-size:13px;color:#888;margin:0 0 10px;">指定レアリティ排出時に画面全体で再生される動画<br>Google DriveのファイルIDを入力（共有URL: drive.google.com/file/d/<b>【ここ】</b>/view）</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+        <input type="text" id="fullscreen-video-id-input" placeholder="GoogleDriveファイルID"
+          style="padding:6px 12px;border:1px solid #ddd;border-radius:16px;font-size:13px;width:300px;">
+      </div>
+      <p style="font-size:13px;color:#888;margin:0 0 8px;">発動するレアリティ</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+        <label class="effect-rarity-label"><input type="checkbox" class="fs-trigger-chk" value="C"> C</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="fs-trigger-chk" value="R"> R</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="fs-trigger-chk" value="SR"> SR</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="fs-trigger-chk" value="SSR"> SSR</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="fs-trigger-chk" value="UR" checked> UR</label>
+      </div>
+      <div id="current-fs-video-id" style="font-size:11px;color:#aaa;margin-top:4px;"></div>
     </div>
     <div style="margin-top:8px;">
       <button class="admin-refresh-btn" onclick="adminSaveEffects()">演出設定を保存</button>
@@ -957,7 +988,12 @@
 </div>
 
 <div id="screen-gacha" class="screen">
-  <div id="ssr-overlay"></div>
+  
+<!-- ===== フルスクリーン動画オーバーレイ ===== -->
+<div id="fullscreen-video-overlay">
+  <video id="fullscreen-video" playsinline preload="none"></video>
+</div>
+<div id="ssr-overlay"></div>
 
   <!-- ヘッダー -->
   <div id="gacha-header">
@@ -1193,9 +1229,23 @@ function doRoll(count) {
       document.getElementById('ticket-count').textContent = data.remaining_tickets;
       updateGachaBtns();
       msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
-      fetchAndPlayVideo(function() {
-        showGachaResults(data.results);
+      // フルスクリーン動画対象レアリティが含まれているか確認
+      var hasFSTrigger = data.results.some(function(item) {
+        return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
       });
+      if (hasFSTrigger && FS_VIDEO_FILE_ID) {
+        fetchFSVideo(function(dataUrl) {
+          if (dataUrl) {
+            playFullscreenVideo(dataUrl, function() {
+              fetchAndPlayVideo(function() { showGachaResults(data.results); });
+            });
+          } else {
+            fetchAndPlayVideo(function() { showGachaResults(data.results); });
+          }
+        });
+      } else {
+        fetchAndPlayVideo(function() { showGachaResults(data.results); });
+      }
     } else { msg('msg-gacha', data.message,'err'); }
   });
 }
@@ -1356,6 +1406,10 @@ var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off
 var GACHA_VIDEO_FILE_ID = '';   // 設定シートから取得したファイルID
 var GACHA_VIDEO_CACHED_ID = ''; // キャッシュ済みのファイルID
 var GACHA_VIDEO_DATA_URL  = ''; // キャッシュ済みbase64
+var FS_VIDEO_FILE_ID    = '';   // フルスクリーン動画ファイルID
+var FS_VIDEO_CACHED_ID  = '';   // フルスクリーン動画キャッシュID
+var FS_VIDEO_DATA_URL   = '';   // フルスクリーン動画base64
+var FS_TRIGGER_RARITIES = ['UR']; // フルスクリーン発動レアリティ
 
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
@@ -1444,15 +1498,61 @@ function loadAssets(cb) {
 }
 
 function loadVideoFileId(cb) {
-  // 設定シートから動画ファイルIDを取得
   api({ action: 'getEffectSettings' }, function(err, data) {
-    if (!err && data && data.success && data.settings && data.settings.gacha_video_id) {
-      GACHA_VIDEO_FILE_ID = data.settings.gacha_video_id;
+    if (!err && data && data.success && data.settings) {
+      var s = data.settings;
+      if (s.gacha_video_id)       GACHA_VIDEO_FILE_ID    = s.gacha_video_id;
+      if (s.fs_video_id)          FS_VIDEO_FILE_ID       = s.fs_video_id;
+      if (s.fs_trigger_rarities)  FS_TRIGGER_RARITIES    = s.fs_trigger_rarities;
     }
     if (cb) cb();
   });
 }
 
+
+function fetchFSVideo(onReady) {
+  if (FS_VIDEO_FILE_ID && FS_VIDEO_FILE_ID === FS_VIDEO_CACHED_ID && FS_VIDEO_DATA_URL) {
+    onReady(FS_VIDEO_DATA_URL); return;
+  }
+  if (!FS_VIDEO_FILE_ID) { onReady(null); return; }
+  api({ action: 'getAsset', key: 'gacha_video', file_id: FS_VIDEO_FILE_ID }, function(err, data) {
+    if (!err && data && data.success && data.dataUrl) {
+      FS_VIDEO_DATA_URL  = data.dataUrl;
+      FS_VIDEO_CACHED_ID = FS_VIDEO_FILE_ID;
+      onReady(FS_VIDEO_DATA_URL);
+    } else {
+      onReady(null);
+    }
+  });
+}
+
+function playFullscreenVideo(dataUrl, onEnded) {
+  var overlay = document.getElementById('fullscreen-video-overlay');
+  var video   = document.getElementById('fullscreen-video');
+  if (!overlay || !video) { if (onEnded) onEnded(); return; }
+
+  var finished = false;
+  function finish() {
+    if (finished) return; finished = true;
+    clearTimeout(timeout);
+    video.onended = null; video.onerror = null;
+    video.pause(); video.removeAttribute('src'); video.load();
+    overlay.style.display = 'none';
+    if (onEnded) onEnded();
+  }
+
+  overlay.style.display = 'block';
+  video.src = dataUrl;
+  video.load();
+  video.play().catch(function(){ finish(); });
+  video.onended = function() { finish(); };
+  video.onerror = function() { finish(); };
+  var timeout = setTimeout(finish, 60000);
+  video.onloadedmetadata = function() {
+    clearTimeout(timeout);
+    timeout = setTimeout(finish, (video.duration + 5) * 1000);
+  };
+}
 function fetchGachaVideo(onReady) {
   // IDが変わっていたらキャッシュ破棄して再取得
   if (GACHA_VIDEO_FILE_ID && GACHA_VIDEO_FILE_ID === GACHA_VIDEO_CACHED_ID && GACHA_VIDEO_DATA_URL) {
@@ -1962,6 +2062,15 @@ function adminLoadEffects() {
     if (s.gacha_video_id) {
       document.getElementById('gacha-video-id-input').value = s.gacha_video_id;
       document.getElementById('current-video-id').textContent = '現在のID: ' + s.gacha_video_id;
+    }
+    if (s.fs_video_id) {
+      document.getElementById('fullscreen-video-id-input').value = s.fs_video_id;
+      document.getElementById('current-fs-video-id').textContent = '現在のID: ' + s.fs_video_id;
+    }
+    if (s.fs_trigger_rarities) {
+      document.querySelectorAll('.fs-trigger-chk').forEach(function(chk) {
+        chk.checked = s.fs_trigger_rarities.indexOf(chk.value) !== -1;
+      });
     }
     msgEl.style.color='#080'; msgEl.textContent='設定を読み込みました';
   });
