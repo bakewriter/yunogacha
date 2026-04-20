@@ -215,7 +215,6 @@
       }
       #trade-wrap, #ssr-wrap { }
       #ur-wrap { grid-column: 1 / -1; }
-    }
     /* ===== 左カラム（PC） ===== */
     #ur-wrap-inner {
       position: relative;
@@ -247,7 +246,7 @@
 
       /* 中央カラム */
       .gacha-center { order: 1; }
-      #gacha-stage { border-radius: 14px; position: relative; overflow: hidden; }
+      #gacha-stage { border-radius: 14px; }
 
       /* ガチャボタン */
       #gacha-btns { gap: 6px; }
@@ -622,7 +621,7 @@
       </div>
 
       <!-- URを出したユーザー -->
-      <div id="ur-wrap" style="position:relative;">
+      <div id="ur-wrap">
         <div id="ur-wrap-inner">
           <img id="ur-frame-img" src="" alt="" style="width:100%;height:auto;display:block;">
           <div id="ur-name-text">－</div>
@@ -768,8 +767,6 @@ function updateGachaUI() {
   if (!currentUser) return;
   document.getElementById('gacha-user-info').textContent = 'ログイン中: ' + currentUser.username;
   document.getElementById('ticket-count').textContent = currentUser.tickets;
-  loadURUsers();
-  loadVideoInBackground();
   updateGachaBtns();
 }
 
@@ -1268,14 +1265,6 @@ function doExchange(itemId,itemName,cost) {
   });
 }
 
-
-function setVolume(val){var v=Number(val)/100;var s=document.getElementById('gacha-sound');if(s)s.volume=v;var i=document.getElementById('volume-icon');if(i)i.textContent=v===0?'🔇':v<0.5?'🔉':'🔊';}
-var urUsers=[],urTimer=null;
-function loadURUsers(){api({action:'getURUsers'},function(e,d){if(!e&&d.success&&d.users&&d.users.length>0){urUsers=d.users;if(urTimer)clearInterval(urTimer);showRandomURUser();urTimer=setInterval(showRandomURUser,5000);}});}
-function showRandomURUser(){var el=document.getElementById('ur-name-text');if(!el||!urUsers.length)return;var u=urUsers[Math.floor(Math.random()*urUsers.length)];el.style.opacity='0';setTimeout(function(){el.textContent=u.username+' さん';el.style.opacity='1';},400);}
-var gachaVideoCache=null;
-function loadVideoInBackground(){var url=GAS+'?payload='+encodeURIComponent(JSON.stringify({action:'getAsset',key:'gacha_video'}));fetch(url,{redirect:'follow'}).then(function(r){return r.json();}).then(function(d){if(d&&d.success&&d.dataUrl)gachaVideoCache=d.dataUrl;}).catch(function(){});}
-function playGachaVideo(onEnded){var v=document.getElementById('gacha-video');if(!v||!gachaVideoCache){if(onEnded)onEnded();return;}var idle=document.getElementById('gacha-idle');var disp=document.getElementById('gacha-result-display');idle.style.display='none';disp.style.display='none';disp.innerHTML='';v.src=gachaVideoCache;v.style.display='block';v.load();var t=setTimeout(function(){v.pause();v.style.display='none';v.src='';if(onEnded)onEnded();},15000);v.onended=function(){clearTimeout(t);v.style.display='none';v.src='';if(onEnded)onEnded();};v.play().catch(function(){clearTimeout(t);v.style.display='none';idle.style.display='block';if(onEnded)onEnded();});}
 </script>
 </body>
 </html>
