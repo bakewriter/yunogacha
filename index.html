@@ -534,30 +534,20 @@
       h2 { font-size: 14px; }
       .gacha-btn img { width: 80px; }
     }
-    /* 音量スライダー */
-    #volume-wrap { display:flex; align-items:center; gap:6px; }
-    #volume-icon { font-size:16px; }
-    #volume-slider { -webkit-appearance:none; width:80px; height:4px; border-radius:2px; background:linear-gradient(90deg,#ff80b0,#ffb6d9); outline:none; cursor:pointer; }
-    #volume-slider::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:#ff80b0; cursor:pointer; }
-    /* SSRランプ点灯 */
-    #ssr-lamp.lit { opacity:1 !important; filter:drop-shadow(0 0 14px #f9c); }
-    /* スマホ用レイアウト（600px以下のみ） */
+
+    /* スマホ用（600px以下のみ） */
     @media (max-width: 600px) {
-      #gacha-header h1 { font-size: 14px; }
-      #gacha-user-info { display: none; }
-      #volume-slider { width: 60px; }
-      .logout-btn { font-size: 11px; padding: 4px 8px; }
       #gacha-wrap { grid-template-columns: 1fr !important; padding: 4px 8px; gap: 8px; }
       .gacha-left { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; order: 3; }
       #ur-wrap { grid-column: 1 / -1; }
       .gacha-center { order: 1; }
-      .gacha-right { order: 2; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+      .gacha-right { order: 2; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
       #history-wrap { grid-column: 1 / -1; }
-      #neko-wrap { max-width: 100%; display: flex; align-items: flex-end; justify-content: center; }
       #neko-wrap img { width: 80%; max-width: 120px; }
       .gacha-btn img { width: clamp(80px, 28vw, 120px) !important; }
-      #ssr-wrap { bottom: -20px !important; left: -10px !important; width: 110px !important; }
-      #gacha-stage-wrap { margin-bottom: 28px !important; }
+      #gacha-header h1 { font-size: 14px; }
+      #gacha-user-info { display: none; }
+      #volume-slider { width: 50px; }
     }
   </style>
 </head>
@@ -657,10 +647,7 @@
     <!-- ===== 中央カラム ===== -->
     <div class="gacha-center">
       <!-- 演出エリア -->
-      <div id="gacha-stage-wrap" style="position:relative;width:100%;margin-bottom:36px;">
-        <div id="ssr-wrap" style="position:absolute;bottom:-30px;left:-20px;width:160px;z-index:10;pointer-events:none;">
-          <img id="ssr-lamp" src="" alt="SSR" style="width:100%;opacity:0.5;transition:opacity 0.3s,filter 0.3s;">
-        </div>
+      <div id="gacha-stage-wrap" style="position:relative;width:100%;">
         <!-- SSRランプ：演出エリア左下に少しかかる位置 -->
         <div id="ssr-wrap">
           <img id="ssr-lamp" src="" alt="SSR">
@@ -799,6 +786,8 @@ function updateGachaUI() {
   if (!currentUser) return;
   document.getElementById('gacha-user-info').textContent = 'ログイン中: ' + currentUser.username;
   document.getElementById('ticket-count').textContent = currentUser.tickets;
+  loadURUsers();
+  loadVideoInBackground();
   updateGachaBtns();
 }
 
@@ -1298,7 +1287,6 @@ function doExchange(itemId,itemName,cost) {
 }
 
 
-// 音量制御
 function setVolume(val) {
   var v = Number(val) / 100;
   var snd = document.getElementById('gacha-sound');
@@ -1306,77 +1294,46 @@ function setVolume(val) {
   var icon = document.getElementById('volume-icon');
   if (icon) icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
 }
-
-// URユーザーローテーション
 var urUsers = [];
-var urDisplayTimer = null;
+var urTimer = null;
 function loadURUsers() {
   api({ action: 'getURUsers' }, function(err, data) {
-    if (err || !data.success) return;
-    urUsers = data.users || [];
-    if (urUsers.length > 0) startURDisplay();
+    if (!err && data.success && data.users.length > 0) {
+      urUsers = data.users;
+      if (urTimer) clearInterval(urTimer);
+      showRandomURUser();
+      urTimer = setInterval(showRandomURUser, 5000);
+    }
   });
 }
-function startURDisplay() {
-  if (urDisplayTimer) clearInterval(urDisplayTimer);
-  showRandomURUser();
-  urDisplayTimer = setInterval(showRandomURUser, 5000);
-}
 function showRandomURUser() {
-  if (!urUsers || urUsers.length === 0) return;
   var el = document.getElementById('ur-name-text');
-  if (!el) return;
+  if (!el || !urUsers.length) return;
   var u = urUsers[Math.floor(Math.random() * urUsers.length)];
-  el.style.transition = 'opacity 0.4s';
   el.style.opacity = '0';
-  setTimeout(function() { el.textContent = u.username + ' さん'; el.style.opacity = '1'; }, 400);
+  setTimeout(function(){ el.textContent = u.username + ' さん'; el.style.opacity = '1'; }, 400);
 }
-
-// 動画関連
-var GACHA_VIDEO_CACHE = null;
+var gachaVideoCache = null;
 function loadVideoInBackground() {
-  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: 'gacha_video' }));
-  fetch(url, { redirect: 'follow' })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data && data.success && data.dataUrl) {
-        GACHA_VIDEO_CACHE = data.dataUrl;
-        console.log('gacha_video cached, len:', data.dataUrl.length);
-      }
-    })
-    .catch(function(e) { console.warn('video cache failed:', e); });
+  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({action:'getAsset',key:'gacha_video'}));
+  fetch(url, {redirect:'follow'}).then(function(r){return r.json();}).then(function(d){
+    if (d && d.success && d.dataUrl) { gachaVideoCache = d.dataUrl; console.log('video cached'); }
+  }).catch(function(){});
 }
-function fetchAndPlayVideo(onEnded) {
-  if (GACHA_VIDEO_CACHE) { playGachaVideo(GACHA_VIDEO_CACHE, onEnded); return; }
-  if (onEnded) onEnded();
-}
-function playGachaVideo(dataUrl, onEnded) {
+function playGachaVideo(onEnded) {
   var video = document.getElementById('gacha-video');
-  var idle  = document.getElementById('gacha-idle');
-  var disp  = document.getElementById('gacha-result-display');
-  if (!video) { if (onEnded) onEnded(); return; }
+  if (!video || !gachaVideoCache) { if (onEnded) onEnded(); return; }
+  var idle = document.getElementById('gacha-idle');
+  var disp = document.getElementById('gacha-result-display');
   idle.style.display = 'none';
   disp.style.display = 'none';
   disp.innerHTML = '';
-  video.src = dataUrl;
+  video.src = gachaVideoCache;
   video.style.display = 'block';
   video.load();
-  var timeout = setTimeout(function() {
-    video.pause(); video.style.display = 'none'; video.src = '';
-    if (onEnded) onEnded();
-  }, 15000);
-  video.onended = function() {
-    clearTimeout(timeout);
-    video.style.display = 'none'; video.src = '';
-    if (onEnded) onEnded();
-  };
-  video.play().catch(function(e) {
-    clearTimeout(timeout);
-    console.warn('video play failed:', e);
-    video.style.display = 'none';
-    idle.style.display = 'block';
-    if (onEnded) onEnded();
-  });
+  var t = setTimeout(function(){ video.pause(); video.style.display='none'; video.src=''; if(onEnded)onEnded(); }, 15000);
+  video.onended = function(){ clearTimeout(t); video.style.display='none'; video.src=''; if(onEnded)onEnded(); };
+  video.play().catch(function(){ clearTimeout(t); video.style.display='none'; idle.style.display='block'; if(onEnded)onEnded(); });
 }
 </script>
 </body>
