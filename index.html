@@ -535,19 +535,27 @@
       .gacha-btn img { width: 80px; }
     }
 
-    /* スマホ用（600px以下のみ） */
+    /* ===== スマホ専用（600px以下） ===== */
     @media (max-width: 600px) {
-      #gacha-wrap { grid-template-columns: 1fr !important; padding: 4px 8px; gap: 8px; }
-      .gacha-left { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; order: 3; }
-      #ur-wrap { grid-column: 1 / -1; }
-      .gacha-center { order: 1; }
-      .gacha-right { order: 2; display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-      #history-wrap { grid-column: 1 / -1; }
-      #neko-wrap img { width: 80%; max-width: 120px; }
-      .gacha-btn img { width: clamp(80px, 28vw, 120px) !important; }
+      body { max-width: none; margin: 0; padding: 0; }
+      #screen-login { max-width: 100%; padding: 8px; margin: 10px auto; }
+      #gacha-header { padding: 6px 10px; }
       #gacha-header h1 { font-size: 14px; }
       #gacha-user-info { display: none; }
-      #volume-slider { width: 50px; }
+      .logout-btn { font-size: 11px; padding: 4px 8px; }
+      #gacha-wrap {
+        grid-template-columns: 1fr !important;
+        padding: 4px 8px;
+        gap: 8px;
+      }
+      .gacha-left { flex-direction: row; flex-wrap: wrap; }
+      .gacha-center { width: 100%; }
+      .gacha-right { flex-direction: row; flex-wrap: wrap; }
+      #history-wrap { width: 100%; }
+      #ticket-wrap { width: 60%; }
+      #neko-wrap { width: 38%; }
+      #neko-wrap img { width: 100%; }
+      .gacha-btn img { width: clamp(80px, 28vw, 130px) !important; }
     }
   </style>
 </head>
@@ -655,10 +663,6 @@
       <!-- 演出エリア（白いカード） -->
       <div id="gacha-stage">
         <div id="gacha-idle">ガチャを引いてね！</div>
-        <video id="gacha-video"
-          style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
-          playsinline preload="none">
-        </video>
         <!-- 動画演出エリア -->
         <video id="gacha-video"
           style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
@@ -1294,11 +1298,10 @@ function setVolume(val) {
   var icon = document.getElementById('volume-icon');
   if (icon) icon.textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
 }
-var urUsers = [];
-var urTimer = null;
+var urUsers = [], urTimer = null;
 function loadURUsers() {
   api({ action: 'getURUsers' }, function(err, data) {
-    if (!err && data.success && data.users.length > 0) {
+    if (!err && data.success && data.users && data.users.length > 0) {
       urUsers = data.users;
       if (urTimer) clearInterval(urTimer);
       showRandomURUser();
@@ -1317,7 +1320,7 @@ var gachaVideoCache = null;
 function loadVideoInBackground() {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({action:'getAsset',key:'gacha_video'}));
   fetch(url, {redirect:'follow'}).then(function(r){return r.json();}).then(function(d){
-    if (d && d.success && d.dataUrl) { gachaVideoCache = d.dataUrl; console.log('video cached'); }
+    if (d && d.success && d.dataUrl) { gachaVideoCache = d.dataUrl; }
   }).catch(function(){});
 }
 function playGachaVideo(onEnded) {
