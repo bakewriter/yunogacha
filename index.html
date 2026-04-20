@@ -1637,7 +1637,7 @@ function adminLoadItems() {
         + '<td>' + badge + '</td>'
         + '<td style="text-align:right;">' + item.probability + '%</td>'
         + '<td style="text-align:center;">' + (item.is_active !== false ? '✅' : '❌') + '</td>'
-        + '<td><button onclick="adminToggleItem('' + item.item_id + '')" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:10px;cursor:pointer;background:#fff;">切替</button></td>'
+        + '<td><button data-id="' + item.item_id + '" onclick="adminToggleItem(this.dataset.id)" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:10px;cursor:pointer;background:#fff;">切替</button></td>'
         + '</tr>';
     }).join('');
   });
