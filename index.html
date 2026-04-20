@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ガチャシステム</title>
   <style>
     * { box-sizing: border-box; }
@@ -75,8 +75,77 @@
       width: 100%;
       box-sizing: border-box;
     }
-    @media (max-width: 768px) {
-      #gacha-wrap { grid-template-columns: 1fr !important; }
+    /* ===== スマホ用レイアウト ===== */
+    @media (max-width: 600px) {
+
+      /* ヘッダー */
+      #gacha-header { padding: 6px 10px; }
+      #gacha-header h1 { font-size: 14px; }
+      #gacha-user-info { font-size: 11px; display: none; }
+      #volume-wrap { gap: 4px; }
+      #volume-slider { width: 60px; }
+      .logout-btn { font-size: 11px; padding: 4px 8px; }
+
+      /* メインラップを縦1カラムに */
+      #gacha-wrap {
+        grid-template-columns: 1fr !important;
+        padding: 4px 8px;
+        gap: 8px;
+      }
+
+      /* 左カラムを横並びに折りたたむ */
+      .gacha-left {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        order: 3; /* 下に移動 */
+      }
+      #trade-wrap, #ssr-wrap { }
+      #ur-wrap { grid-column: 1 / -1; }
+
+      /* 中央カラム */
+      .gacha-center { order: 1; }
+      #gacha-stage { border-radius: 14px; }
+
+      /* ガチャボタン */
+      #gacha-btns { gap: 6px; }
+      .gacha-btn img { width: clamp(80px, 28vw, 120px); }
+
+      /* 右カラム：横並び2カラムに */
+      .gacha-right {
+        order: 2;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        align-items: start;
+      }
+      #history-wrap { grid-column: 1 / -1; }
+      #ticket-wrap  { grid-column: 1; }
+      #neko-wrap    {
+        grid-column: 2;
+        max-width: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
+      #neko-wrap img { width: 80%; max-width: 120px; }
+
+      /* SSRランプサイズ */
+      #ssr-wrap img { width: 90%; }
+
+      /* シリアル・交換セクション */
+      #serial-section, #exchange-section {
+        padding: 0 8px 12px;
+      }
+      #serial-input { width: 180px; font-size: 12px; }
+
+      /* ローディング */
+      #screen-loading { padding: 20px; }
+
+      /* ログイン画面 */
+      #screen-login { padding: 8px; margin: 10px auto; }
+      .card-stage { width: 120%; margin-left: -10%; margin-top: 50px; }
+      .tab-btns { top: -42px; }
     }
 
     /* ===== 左カラム ===== */
@@ -593,8 +662,13 @@
       </div>
 
       <!-- URを出したユーザー（SSRの下） -->
-      <div id="ur-wrap">
+      <div id="ur-wrap" style="position:relative;">
         <img id="ur-frame-img" src="" alt="" style="width:100%;object-fit:contain;display:block;">
+        <div id="ur-name-text" style="
+          position:absolute; bottom:18%; left:10%; right:10%;
+          text-align:center; font-size:15px; font-weight:bold;
+          color:#ff80b0; text-shadow:0 1px 3px rgba(255,255,255,0.8);
+          transition:opacity 0.4s; pointer-events:none;">－</div>
       </div>
     </div>
 
@@ -609,6 +683,7 @@
         <video id="gacha-video"
           style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
           playsinline
+          muted
           preload="none">
         </video>
         <div id="gacha-result-display"></div>
@@ -686,6 +761,40 @@
 
 /* ===== ガチャ画面 JS ===== */
 
+// ============================================================
+// URユーザーをスプレッドシートから取得して5秒ごとにランダム表示
+// ============================================================
+var urUsers = [];
+var urDisplayTimer = null;
+
+function loadURUsers() {
+  api({ action: 'getURUsers' }, function(err, data) {
+    if (err || !data.success) return;
+    urUsers = data.users || [];
+    if (urUsers.length > 0) startURDisplay();
+  });
+}
+
+function startURDisplay() {
+  if (urDisplayTimer) clearInterval(urDisplayTimer);
+  showRandomURUser(); // 即座に1件表示
+  urDisplayTimer = setInterval(showRandomURUser, 5000);
+}
+
+function showRandomURUser() {
+  if (!urUsers || urUsers.length === 0) return;
+  var el = document.getElementById('ur-name-text');
+  if (!el) return;
+  var u = urUsers[Math.floor(Math.random() * urUsers.length)];
+  // フェードアウト→テキスト変更→フェードイン
+  el.style.transition = 'opacity 0.4s';
+  el.style.opacity = '0';
+  setTimeout(function() {
+    el.textContent = u.username + ' さん';
+    el.style.opacity = '1';
+  }, 400);
+}
+
 function setVolume(val) {
   var v = Number(val) / 100;
   var snd = document.getElementById('gacha-sound');
@@ -756,8 +865,11 @@ function doRoll(count) {
       sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
       document.getElementById('ticket-count').textContent = data.remaining_tickets;
       updateGachaBtns();
-      showGachaResults(data.results);
       msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
+      // 動画再生 → 終了後に結果表示
+      fetchAndPlayVideo(function() {
+        showGachaResults(data.results);
+      });
     } else { msg('msg-gacha', data.message,'err'); }
   });
 }
@@ -789,7 +901,11 @@ function showGachaResults(results) {
       renderResults(results, disp, idle);
       scheduleSSROff();
       if (document.getElementById('ur-name-text'))
-        document.getElementById('ur-name-text').textContent = currentUser.username + ' さん';
+        // UR排出時：リストに追加してur-name-textを更新
+    var newUser = { user_id: currentUser.user_id, username: currentUser.username };
+    var exists = urUsers.some(function(u){ return u.user_id === currentUser.user_id; });
+    if (!exists) urUsers.push(newUser);
+    var urEl = document.getElementById('ur-name-text'); if (urEl) urEl.textContent = currentUser.username + ' さん';
     }, 2000);
   } else {
     // SSRなし：即座に結果表示
@@ -799,19 +915,53 @@ function showGachaResults(results) {
 }
 
 // ガチャ動画を再生する（動画ファイルのURLを設定してから呼ぶ）
+function fetchAndPlayVideo(onEnded) {
+  // キャッシュ済みならすぐ再生
+  if (ASSETS.gacha_video) {
+    playGachaVideo(ASSETS.gacha_video, onEnded);
+    return;
+  }
+  // 未キャッシュの場合はスキップして結果表示
+  console.warn('gacha_video not cached yet');
+  if (onEnded) onEnded();
+}
+
 function playGachaVideo(videoUrl, onEnded) {
   var video = document.getElementById('gacha-video');
   var idle  = document.getElementById('gacha-idle');
-  if (!video || !videoUrl) { if (onEnded) onEnded(); return; }
+  var disp  = document.getElementById('gacha-result-display');
+  if (!video) { if (onEnded) onEnded(); return; }
+
+  // 結果表示をリセット
+  idle.style.display  = 'none';
+  disp.style.display  = 'none';
+  disp.innerHTML = '';
+
   video.src = videoUrl;
   video.style.display = 'block';
-  idle.style.display  = 'none';
+  video.load();
   video.play().catch(function(e) {
     console.warn('video play failed:', e);
     video.style.display = 'none';
+    idle.style.display  = 'block';
     if (onEnded) onEnded();
   });
   video.onended = function() {
+    video.style.display = 'none';
+    video.src = '';
+    if (onEnded) onEnded();
+  };
+  // 10秒でタイムアウト（動画が読み込めない場合のフォールバック）
+  var timeout = setTimeout(function() {
+    if (video.style.display !== 'none') {
+      video.pause();
+      video.style.display = 'none';
+      video.src = '';
+      if (onEnded) onEnded();
+    }
+  }, 10000);
+  video.onended = function() {
+    clearTimeout(timeout);
     video.style.display = 'none';
     video.src = '';
     if (onEnded) onEnded();
@@ -873,8 +1023,8 @@ var currentUser = null;
 var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off:'', frame:'', ur_frame:'', audio:'' };
 // ガチャ演出動画のURL（Driveの共有URL or 外部URL）
 // 例: 'https://drive.google.com/file/d/YOUR_FILE_ID/preview'
-var GACHA_VIDEO_URL = '';
-var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
+var GACHA_VIDEO_URL = 'GAS_PROXY'; // GASプロキシ経由で動画を取得
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio','gacha_video'];
 
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
@@ -921,11 +1071,12 @@ function onAssetsLoaded(cb) {
 }
 
 // 素材キー一覧
-var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio','gacha_video'];
 
 function loadAssets(cb) {
-  var keys = ASSET_KEYS.slice();
-  var total = keys.length;
+  // 画像・音声（動画以外）を並列取得
+  var imageKeys = ASSET_KEYS.filter(function(k){ return k !== 'gacha_video'; });
+  var total  = imageKeys.length;
   var loaded = 0;
 
   function onLoad() {
@@ -937,8 +1088,8 @@ function loadAssets(cb) {
     }
   }
 
-  // 全ファイルを並列取得
-  keys.forEach(function(key) {
+  // 画像・音声を並列取得
+  imageKeys.forEach(function(key) {
     var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: key }));
     fetch(url, { redirect: 'follow' })
       .then(function(r) { return r.json(); })
@@ -956,6 +1107,27 @@ function loadAssets(cb) {
         onLoad();
       });
   });
+
+  // 動画は裏で非同期取得（ページ表示をブロックしない）
+  loadVideoInBackground();
+}
+
+function loadVideoInBackground() {
+  if (ASSETS.gacha_video) return; // 既にキャッシュ済み
+  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: 'gacha_video' }));
+  fetch(url, { redirect: 'follow' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.success && data.dataUrl) {
+        ASSETS.gacha_video = data.dataUrl;
+        console.log('gacha_video cached, len:', data.dataUrl.length);
+      } else {
+        console.warn('gacha_video failed:', data ? data.message : 'null');
+      }
+    })
+    .catch(function(e) {
+      console.warn('gacha_video fetch error:', e);
+    });
 }
 
 function positionLabels() {
@@ -980,6 +1152,7 @@ function gotoGacha() {
   updateGachaUI();
   applyGachaAssets();
   loadItems();
+  loadURUsers();
 }
 
 function doLogout() {
