@@ -802,7 +802,7 @@
             <th>ユーザーID</th><th>メールアドレス</th><th>ユーザー名</th>
             <th>チケット</th><th>累計ガチャ</th><th>登録日時</th><th>有効</th>
           </tr></thead>
-          <tbody id="admin-users-body"><tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+          <tbody id="admin-users-body"><tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -903,9 +903,9 @@
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead><tr>
-            <th>アイテムID</th><th>アイテム名</th><th>レアリティ</th><th>排出確率(%)</th><th>有効</th><th>操作</th>
+            <th>アイテムID</th><th>アイテム名</th><th>レアリティ</th><th>排出確率(%)</th><th>操作</th>
           </tr></thead>
-          <tbody id="admin-items-body"><tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+          <tbody id="admin-items-body"><tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
       </div>
       <div id="admin-prob-total" style="font-size:13px;font-weight:bold;margin-top:8px;padding:6px 12px;border-radius:8px;background:#f9f9f9;display:inline-block;">合計排出確率: <span id="prob-total-val">-</span>%</div>
@@ -1750,10 +1750,10 @@ function switchAdminTab(name) {
 // ============================================================
 function adminLoadUsers() {
   var tbody = document.getElementById('admin-users-body');
-  tbody.innerHTML = '<tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
   api({ action: 'adminGetUsers' }, function(err, data) {
     if (err || !data.success) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#c00;text-align:center;">取得失敗</td></tr>';
       return;
     }
     if (!data.users.length) {
@@ -1877,14 +1877,14 @@ function adminLoadLogs() {
 // ============================================================
 function adminLoadItems() {
   var tbody = document.getElementById('admin-items-body');
-  tbody.innerHTML = '<tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
   api({ action: 'getItems' }, function(err, data) {
     if (err || !data.success) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#c00;text-align:center;">取得失敗</td></tr>';
       return;
     }
     if (!data.items.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="color:#ccc;text-align:center;">アイテムなし</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">アイテムなし</td></tr>';
       return;
     }
     tbody.innerHTML = data.items.map(function(item) {
@@ -1895,8 +1895,7 @@ function adminLoadItems() {
         + '<td><b>' + item.item_name + '</b></td>'
         + '<td>' + badge + '</td>'
         + '<td style="text-align:right;">' + item.probability + '%</td>'
-        + '<td style="text-align:center;">' + (item.is_active !== false ? '有効' : '無効') + '</td>'
-        + '<td><button data-id="' + item.item_id + '" onclick="adminToggleItem(this.dataset.id)" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:10px;cursor:pointer;background:#fff;">切替</button></td>'
+        + '<td><button data-id="' + item.item_id + '" data-name="' + item.item_name + '" onclick="adminDeleteItem(this.dataset.id, this.dataset.name)" style="font-size:11px;padding:3px 8px;border:1px solid #fcc;border-radius:8px;cursor:pointer;background:#fff;color:#c00;">削除</button></td>'
         + '</tr>';
     }).join('');
   });
