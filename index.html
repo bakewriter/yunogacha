@@ -2,122 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ガチャシステム</title>
   <style>
-    /* ===== ログイン画面 ===== */
-    .tab-btns {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      position: absolute;
-      top: -38px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      white-space: nowrap;
-    }
-    .tab-btn-item {
-      padding: 6px 18px;
-      font-size: 13px;
-      font-weight: bold;
-      background: #ccc;
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      cursor: pointer;
-      opacity: 0.45;
-      transition: opacity 0.25s, background 0.25s;
-    }
-    .tab-btn-item.active { background: #444; opacity: 1; }
-
-    .card-stage {
-      position: relative;
-      margin-top: 44px;
-      overflow: visible;
-      width: 140%;
-      margin-left: -20%;
-      aspect-ratio: 1920 / 1080;
-    }
-    .tab-card {
-      position: absolute;
-      top: 0; left: 0;
-      width: calc(100% - 12px);
-      aspect-ratio: 1920 / 1080;
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      background-color: rgba(200,200,200,0.15);
-      border: none;
-      padding: 12% 36% 11% 36%;
-      box-sizing: border-box;
-      transform-origin: top center;
-      transition: transform 0.4s ease, opacity 0.4s ease;
-      cursor: pointer;
-    }
-    .tab-card.front {
-      transform: scale(1) translateY(0);
-      opacity: 1;
-      z-index: 2;
-    }
-    .tab-card.back {
-      transform: scale(0.86) translateX(46%) translateY(14px);
-      opacity: 0.65;
-      z-index: 1;
-    }
-    .card-tab-label { display: none; }
-    .tab-card label {
-      display: block;
-      font-size: clamp(10px,1.6vw,13px);
-      margin-bottom: 3px;
-      color: #444;
-    }
-    .tab-card input {
-      width: 100%; box-sizing: border-box;
-      padding: clamp(3px,0.8vw,6px) 8px;
-      font-size: clamp(10px,1.6vw,13px);
-      border: 1px solid #ddd;
-      border-radius: 20px;
-      margin-bottom: clamp(2px,0.5vw,5px);
-      background: rgba(255,255,255,0.5);
-      pointer-events: none;
-    }
-    .tab-card.front input {
-      background: rgba(255,255,255,0.95);
-      border-color: #bbb;
-      pointer-events: auto;
-    }
-    #login-btn-wrap {
-      text-align: center;
-      margin-top: 16px;
-      position: relative;
-      z-index: 5;
-    }
-    button.main-btn {
-      display: inline-block;
-      min-width: 200px;
-      padding: 14px 40px;
-      font-size: 16px;
-      font-weight: bold;
-      letter-spacing: 0.08em;
-      color: #fff;
-      background: linear-gradient(135deg, #ff80b0, #ffb347);
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
-      transition: transform 0.15s, box-shadow 0.15s;
-      margin-top: 8px;
-    }
-    button.main-btn:hover { transform: scale(1.04); }
-    button.main-btn:active { transform: scale(0.97); }
-    button#btn-login {
-      background: linear-gradient(135deg, #80c8ff, #b47fff);
-      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
-    }
-    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
-    .err { color: #c00; }
-    .ok  { color: #080; }
-
     * { box-sizing: border-box; }
     body {
       font-family: sans-serif;
@@ -188,104 +75,71 @@
       width: 100%;
       box-sizing: border-box;
     }
-    /* ===== スマホ用レイアウト ===== */
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
+      #gacha-wrap { grid-template-columns: 1fr !important; }
+    }
 
-      /* ヘッダー */
-      #gacha-header { padding: 6px 10px; }
-      #gacha-header h1 { font-size: 14px; }
-      #gacha-user-info { font-size: 11px; display: none; }
-      #volume-wrap { gap: 4px; }
-      #volume-slider { width: 60px; }
-      .logout-btn { font-size: 11px; padding: 4px 8px; }
+    /* ===== 左カラム ===== */
+    .gacha-left { display: flex; flex-direction: column; gap: 14px; }
 
-      /* メインラップを縦1カラムに */
-      #gacha-wrap {
-        grid-template-columns: 1fr !important;
-        padding: 4px 8px;
-        gap: 8px;
-      }
+    #trade-wrap img {
+      width: 100%;
+      object-fit: contain;
+      cursor: pointer;
+    }
 
-      /* 左カラムを横並びに折りたたむ */
-      .gacha-left {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        order: 3; /* 下に移動 */
-      }
-      #trade-wrap, #ssr-wrap { }
-      #ur-wrap { grid-column: 1 / -1; }
-    /* ===== 左カラム（PC） ===== */
-    #ur-wrap-inner {
+    /* URボックス（画像のみ） */
+    #ur-wrap { width: 100%; }
+    #ur-frame-img {
+      width: 100%;
+      object-fit: contain;
+    }
+
+    /* SSRランプは中央カラム内に移動済み */
+
+    /* ===== 中央カラム ===== */
+    .gacha-center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+    /* 演出エリア＋SSRラップ */
+    #gacha-stage-wrap {
       position: relative;
       width: 100%;
     }
-    #ur-frame-img {
+
+    /* 演出エリア（16:9） */
+    #gacha-stage {
       width: 100%;
-      height: auto;
-      display: block;
-      object-fit: contain;
-    }
-    #ur-name-text {
-      position: absolute;
-      /* URフレームの白い名前エリア：下部55%〜83% 左右12% */
-      top: 57%; bottom: 14%;
-      left: 12%; right: 12%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      font-size: clamp(12px, 1.8vw, 16px);
-      font-weight: bold;
-      color: #ff80b0;
-      text-shadow: 0 1px 3px rgba(255,255,255,0.8);
-      transition: opacity 0.4s;
-      pointer-events: none;
+      aspect-ratio: 16 / 9;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+      display: flex; align-items: center; justify-content: center;
       overflow: hidden;
+      position: relative;
     }
-
-      /* 中央カラム */
-      .gacha-center { order: 1; }
-      #gacha-stage { border-radius: 14px; }
-
-      /* ガチャボタン */
-      #gacha-btns { gap: 6px; }
-      .gacha-btn img { width: clamp(80px, 28vw, 120px); }
-
-      /* 右カラム：横並び2カラムに */
-      .gacha-right {
-        order: 2;
-        display: grid !important;
-        grid-template-columns: 1fr 1fr;
-        gap: 8px;
-        align-items: start;
-      }
-      #history-wrap { grid-column: 1 / -1; }
-      #ticket-wrap  { grid-column: 1; }
-      #neko-wrap    {
-        grid-column: 2;
-        max-width: 100%;
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
-      }
-      #neko-wrap img { width: 80%; max-width: 120px; }
-
-      /* SSRランプ：ガチャ演出左下に絶対配置 */
-    #ssr-wrap {
-      position: absolute;
-      bottom: -30px;
-      left: -20px;
-      width: 160px;
-      z-index: 10;
-      pointer-events: none;
+    #gacha-idle { font-size: clamp(14px,2vw,20px); color: #ccc; font-weight: bold; }
+    #gacha-result-display {
+      display: none; flex-direction: column;
+      align-items: center; gap: 6px;
+      padding: 12px; width: 100%; overflow-y: auto;
     }
+    .result-card {
+      padding: 7px 16px; border-radius: 20px;
+      font-size: 14px; font-weight: bold;
+      color: #fff; width: 88%; text-align: center;
+    }
+    .result-card.SSR { background: linear-gradient(90deg,#f9c,#f6a); box-shadow: 0 0 12px #f9c; }
+    .result-card.SR  { background: linear-gradient(90deg,#c9f,#a6f); }
+    .result-card.R   { background: linear-gradient(90deg,#9cf,#6af); }
+    .result-card.N   { background: #ccc; color: #555; }
+
+    /* SSRランプ：左カラム下部 */
+    #ssr-wrap { width: 100%; }
     #ssr-wrap img {
       width: 100%;
       height: auto;
-      display: block;
       object-fit: contain;
-      opacity: 0.5;
+      opacity: 0.45;
       transition: opacity 0.3s, filter 0.3s;
     }
     #ssr-wrap img.lit { opacity: 1; filter: drop-shadow(0 0 14px #f9c); }
@@ -419,7 +273,120 @@
       font-size: 12px; padding: 4px 12px; cursor: pointer; border-radius: 12px;
     }
 
-        /* ===== ガチャ画面 ===== */
+        /* ===== ログイン画面 ===== */
+    .tab-btns {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      position: absolute;
+      top: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      white-space: nowrap;
+    }
+    .tab-btn-item {
+      padding: clamp(4px,1vw,6px) clamp(10px,2.5vw,18px);
+      font-size: clamp(11px,1.8vw,13px);
+      font-weight: bold;
+      background: #ccc;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: opacity 0.25s, background 0.25s;
+      letter-spacing: 0.05em;
+    }
+    .tab-btn-item.active { background: #444; opacity: 1; }
+
+    .card-stage {
+      position: relative;
+      margin-top: 44px;
+      overflow: visible;
+      width: 140%;
+      margin-left: -20%;
+      /* frontカードの高さを継承するためmin-heightを設定 */
+    }
+    .tab-card {
+      position: relative; top: 0; left: 0;
+      width: calc(100% - 12px);
+      aspect-ratio: 1920 / 1080;
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-color: rgba(200,200,200,0.15); /* フレーム未ロード時の仮背景 */
+      border: none;
+      padding: 12% 36% 11% 36%;
+      box-sizing: border-box;
+      transform-origin: top center;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      cursor: pointer;
+    }
+    .tab-card.front {
+      position: relative; /* 高さをstageに伝える */
+      left: 0;
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      z-index: 2;
+    }
+    .tab-card.back {
+      position: absolute; /* backはabsoluteのまま */
+      left: 0;
+      transform: scale(0.86) translateX(46%) translateY(14px);
+      opacity: 0.65;
+      z-index: 1;
+    }
+    .card-title { display: none; }
+    .tab-card label { display: block; font-size: clamp(10px,1.6vw,13px); margin-bottom: 3px; color: #444; }
+    .tab-card input {
+      width: 100%; box-sizing: border-box;
+      padding: clamp(3px,0.8vw,6px) 8px;
+      font-size: clamp(10px,1.6vw,13px);
+      border: 1px solid #ddd; border-radius: 20px;
+      margin-bottom: clamp(2px,0.5vw,5px);
+      background: rgba(255,255,255,0.5);
+      pointer-events: none;
+    }
+    .tab-card.front input {
+      background: rgba(255,255,255,0.95);
+      border-color: #bbb;
+      pointer-events: auto;
+    }
+    .card-tab-label { display: none; }
+
+    #login-btn-wrap {
+      text-align: center;
+      margin-top: 16px;
+      position: relative;
+      z-index: 5;
+    }
+    button.main-btn {
+      display: inline-block;
+      min-width: 200px;
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      color: #fff;
+      background: linear-gradient(135deg, #ff80b0, #ffb347);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin-top: 8px;
+    }
+    button.main-btn:hover { transform: scale(1.04); box-shadow: 0 6px 20px rgba(255,128,176,0.6); }
+    button.main-btn:active { transform: scale(0.97); }
+    button#btn-login {
+      background: linear-gradient(135deg, #80c8ff, #b47fff);
+      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
+    }
+    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
+    .err { color: #c00; }
+    .ok  { color: #080; }
+
+    /* ===== ガチャ画面 ===== */
     #gacha-wrap {
       display: grid;
       grid-template-columns: 200px 1fr 200px;
@@ -620,12 +587,14 @@
         <img id="trade-img" src="" alt="交換所" onclick="showExchange()">
       </div>
 
-      <!-- URを出したユーザー -->
+      <!-- SSRランプ（交換所の下） -->
+      <div id="ssr-wrap">
+        <img id="ssr-lamp" src="" alt="SSR">
+      </div>
+
+      <!-- URを出したユーザー（SSRの下） -->
       <div id="ur-wrap">
-        <div id="ur-wrap-inner">
-          <img id="ur-frame-img" src="" alt="" style="width:100%;height:auto;display:block;">
-          <div id="ur-name-text">－</div>
-        </div>
+        <img id="ur-frame-img" src="" alt="" style="width:100%;object-fit:contain;display:block;">
       </div>
     </div>
 
@@ -633,10 +602,6 @@
     <div class="gacha-center">
       <!-- 演出エリア -->
       <div id="gacha-stage-wrap" style="position:relative;width:100%;">
-        <!-- SSRランプ：演出エリア左下に少しかかる位置 -->
-        <div id="ssr-wrap">
-          <img id="ssr-lamp" src="" alt="SSR">
-        </div>
       <!-- 演出エリア（白いカード） -->
       <div id="gacha-stage">
         <div id="gacha-idle">ガチャを引いてね！</div>
@@ -721,40 +686,6 @@
 
 /* ===== ガチャ画面 JS ===== */
 
-// ============================================================
-// URユーザーをスプレッドシートから取得して5秒ごとにランダム表示
-// ============================================================
-var urUsers = [];
-var urDisplayTimer = null;
-
-function loadURUsers() {
-  api({ action: 'getURUsers' }, function(err, data) {
-    if (err || !data.success) return;
-    urUsers = data.users || [];
-    if (urUsers.length > 0) startURDisplay();
-  });
-}
-
-function startURDisplay() {
-  if (urDisplayTimer) clearInterval(urDisplayTimer);
-  showRandomURUser(); // 即座に1件表示
-  urDisplayTimer = setInterval(showRandomURUser, 5000);
-}
-
-function showRandomURUser() {
-  if (!urUsers || urUsers.length === 0) return;
-  var el = document.getElementById('ur-name-text');
-  if (!el) return;
-  var u = urUsers[Math.floor(Math.random() * urUsers.length)];
-  // フェードアウト→テキスト変更→フェードイン
-  el.style.transition = 'opacity 0.4s';
-  el.style.opacity = '0';
-  setTimeout(function() {
-    el.textContent = u.username + ' さん';
-    el.style.opacity = '1';
-  }, 400);
-}
-
 function setVolume(val) {
   var v = Number(val) / 100;
   var snd = document.getElementById('gacha-sound');
@@ -825,11 +756,8 @@ function doRoll(count) {
       sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
       document.getElementById('ticket-count').textContent = data.remaining_tickets;
       updateGachaBtns();
+      showGachaResults(data.results);
       msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
-      // 動画再生 → 終了後に結果表示
-      fetchAndPlayVideo(function() {
-        showGachaResults(data.results);
-      });
     } else { msg('msg-gacha', data.message,'err'); }
   });
 }
@@ -861,11 +789,7 @@ function showGachaResults(results) {
       renderResults(results, disp, idle);
       scheduleSSROff();
       if (document.getElementById('ur-name-text'))
-        // UR排出時：リストに追加してur-name-textを更新
-    var newUser = { user_id: currentUser.user_id, username: currentUser.username };
-    var exists = urUsers.some(function(u){ return u.user_id === currentUser.user_id; });
-    if (!exists) urUsers.push(newUser);
-    var urEl = document.getElementById('ur-name-text'); if (urEl) urEl.textContent = currentUser.username + ' さん';
+        document.getElementById('ur-name-text').textContent = currentUser.username + ' さん';
     }, 2000);
   } else {
     // SSRなし：即座に結果表示
@@ -875,53 +799,19 @@ function showGachaResults(results) {
 }
 
 // ガチャ動画を再生する（動画ファイルのURLを設定してから呼ぶ）
-function fetchAndPlayVideo(onEnded) {
-  // キャッシュ済みならすぐ再生
-  if (ASSETS.gacha_video) {
-    playGachaVideo(ASSETS.gacha_video, onEnded);
-    return;
-  }
-  // 未キャッシュの場合はスキップして結果表示
-  console.warn('gacha_video not cached yet');
-  if (onEnded) onEnded();
-}
-
 function playGachaVideo(videoUrl, onEnded) {
   var video = document.getElementById('gacha-video');
   var idle  = document.getElementById('gacha-idle');
-  var disp  = document.getElementById('gacha-result-display');
-  if (!video) { if (onEnded) onEnded(); return; }
-
-  // 結果表示をリセット
-  idle.style.display  = 'none';
-  disp.style.display  = 'none';
-  disp.innerHTML = '';
-
+  if (!video || !videoUrl) { if (onEnded) onEnded(); return; }
   video.src = videoUrl;
   video.style.display = 'block';
-  video.load();
+  idle.style.display  = 'none';
   video.play().catch(function(e) {
     console.warn('video play failed:', e);
     video.style.display = 'none';
-    idle.style.display  = 'block';
     if (onEnded) onEnded();
   });
   video.onended = function() {
-    video.style.display = 'none';
-    video.src = '';
-    if (onEnded) onEnded();
-  };
-  // 10秒でタイムアウト（動画が読み込めない場合のフォールバック）
-  var timeout = setTimeout(function() {
-    if (video.style.display !== 'none') {
-      video.pause();
-      video.style.display = 'none';
-      video.src = '';
-      if (onEnded) onEnded();
-    }
-  }, 10000);
-  video.onended = function() {
-    clearTimeout(timeout);
     video.style.display = 'none';
     video.src = '';
     if (onEnded) onEnded();
@@ -983,8 +873,8 @@ var currentUser = null;
 var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off:'', frame:'', ur_frame:'', audio:'' };
 // ガチャ演出動画のURL（Driveの共有URL or 外部URL）
 // 例: 'https://drive.google.com/file/d/YOUR_FILE_ID/preview'
-var GACHA_VIDEO_URL = 'GAS_PROXY'; // GASプロキシ経由で動画を取得
-var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio','gacha_video'];
+var GACHA_VIDEO_URL = '';
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
 
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
@@ -1031,12 +921,11 @@ function onAssetsLoaded(cb) {
 }
 
 // 素材キー一覧
-var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio','gacha_video'];
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
 
 function loadAssets(cb) {
-  // 画像・音声（動画以外）を並列取得
-  var imageKeys = ASSET_KEYS.filter(function(k){ return k !== 'gacha_video'; });
-  var total  = imageKeys.length;
+  var keys = ASSET_KEYS.slice();
+  var total = keys.length;
   var loaded = 0;
 
   function onLoad() {
@@ -1048,8 +937,8 @@ function loadAssets(cb) {
     }
   }
 
-  // 画像・音声を並列取得
-  imageKeys.forEach(function(key) {
+  // 全ファイルを並列取得
+  keys.forEach(function(key) {
     var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: key }));
     fetch(url, { redirect: 'follow' })
       .then(function(r) { return r.json(); })
@@ -1067,38 +956,12 @@ function loadAssets(cb) {
         onLoad();
       });
   });
-
-  // 動画は裏で非同期取得（ページ表示をブロックしない）
-  loadVideoInBackground();
-}
-
-function loadVideoInBackground() {
-  if (ASSETS.gacha_video) return; // 既にキャッシュ済み
-  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: 'gacha_video' }));
-  fetch(url, { redirect: 'follow' })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data && data.success && data.dataUrl) {
-        ASSETS.gacha_video = data.dataUrl;
-        console.log('gacha_video cached, len:', data.dataUrl.length);
-      } else {
-        console.warn('gacha_video failed:', data ? data.message : 'null');
-      }
-    })
-    .catch(function(e) {
-      console.warn('gacha_video fetch error:', e);
-    });
 }
 
 function positionLabels() {
-  // aspect-ratioでcard-stageの高さは自動計算されるので不要
-  // ただしiOS対応のため念のため設定
+  var front=document.querySelector('.tab-card.front');
   var stage=document.getElementById('card-stage');
-  if (stage) {
-    var w = stage.offsetWidth;
-    var h = Math.round(w * 1080 / 1920);
-    if (h > 0) stage.style.height = h + 'px';
-  }
+  if (front&&stage) stage.style.height=front.offsetHeight+'px';
 }
 window.addEventListener('resize', positionLabels);
 
@@ -1117,7 +980,6 @@ function gotoGacha() {
   updateGachaUI();
   applyGachaAssets();
   loadItems();
-  loadURUsers();
 }
 
 function doLogout() {
