@@ -1509,7 +1509,7 @@ function adminLoadUsers() {
         + '<td style="text-align:right;">' + u.tickets + '枚</td>'
         + '<td style="text-align:right;">' + u.total_rolls + '回</td>'
         + '<td style="font-size:11px;">' + u.created_at + '</td>'
-        + '<td style="text-align:center;">' + (u.is_active ? '✅' : '❌') + '</td>'
+        + '<td style="text-align:center;">' + (u.is_active ? '有効' : '無効') + '</td>'
         + '</tr>';
     }).join('');
   });
@@ -1535,7 +1535,7 @@ function adminLoadSerials() {
       return '<tr>'
         + '<td style="font-family:monospace;' + usedStyle + '">' + s.serial + '</td>'
         + '<td style="text-align:right;">' + s.tickets + '枚</td>'
-        + '<td style="text-align:center;">' + (s.is_used ? '✅使用済み' : '⬜未使用') + '</td>'
+        + '<td style="text-align:center;">' + (s.is_used ? '使用済み' : '未使用') + '</td>'
         + '<td style="font-size:11px;color:#aaa;">' + (s.used_by || '-') + '</td>'
         + '<td style="font-size:11px;">' + (s.used_at || '-') + '</td>'
         + '</tr>';
@@ -1636,7 +1636,7 @@ function adminLoadItems() {
         + '<td><b>' + item.item_name + '</b></td>'
         + '<td>' + badge + '</td>'
         + '<td style="text-align:right;">' + item.probability + '%</td>'
-        + '<td style="text-align:center;">' + (item.is_active !== false ? '✅' : '❌') + '</td>'
+        + '<td style="text-align:center;">' + (item.is_active !== false ? '有効' : '無効') + '</td>'
         + '<td><button data-id="' + item.item_id + '" onclick="adminToggleItem(this.dataset.id)" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:10px;cursor:pointer;background:#fff;">切替</button></td>'
         + '</tr>';
     }).join('');
