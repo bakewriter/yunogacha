@@ -189,6 +189,33 @@
       box-sizing: border-box;
     }
     /* ===== スマホ用レイアウト ===== */
+    @media (max-width: 600px) {
+
+      /* ヘッダー */
+      #gacha-header { padding: 6px 10px; }
+      #gacha-header h1 { font-size: 14px; }
+      #gacha-user-info { font-size: 11px; display: none; }
+      #volume-wrap { gap: 4px; }
+      #volume-slider { width: 60px; }
+      .logout-btn { font-size: 11px; padding: 4px 8px; }
+
+      /* メインラップを縦1カラムに */
+      #gacha-wrap {
+        grid-template-columns: 1fr !important;
+        padding: 4px 8px;
+        gap: 8px;
+      }
+
+      /* 左カラムを横並びに折りたたむ */
+      .gacha-left {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        order: 3; /* 下に移動 */
+      }
+      #trade-wrap, #ssr-wrap { }
+      #ur-wrap { grid-column: 1 / -1; }
+    }
     /* ===== 左カラム（PC） ===== */
     #ur-wrap-inner {
       position: relative;
@@ -1242,7 +1269,7 @@ function doExchange(itemId,itemName,cost) {
 }
 
 
-function setVolume(val) { var v=Number(val)/100; var s=document.getElementById('gacha-sound'); if(s)s.volume=v; var i=document.getElementById('volume-icon'); if(i)i.textContent=v===0?'🔇':v<0.5?'🔉':'🔊'; }
+function setVolume(val){var v=Number(val)/100;var s=document.getElementById('gacha-sound');if(s)s.volume=v;var i=document.getElementById('volume-icon');if(i)i.textContent=v===0?'🔇':v<0.5?'🔉':'🔊';}
 var urUsers=[],urTimer=null;
 function loadURUsers(){api({action:'getURUsers'},function(e,d){if(!e&&d.success&&d.users&&d.users.length>0){urUsers=d.users;if(urTimer)clearInterval(urTimer);showRandomURUser();urTimer=setInterval(showRandomURUser,5000);}});}
 function showRandomURUser(){var el=document.getElementById('ur-name-text');if(!el||!urUsers.length)return;var u=urUsers[Math.floor(Math.random()*urUsers.length)];el.style.opacity='0';setTimeout(function(){el.textContent=u.username+' さん';el.style.opacity='1';},400);}
