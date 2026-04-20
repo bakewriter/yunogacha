@@ -1057,12 +1057,13 @@ function showGachaResults(results) {
 }
 
 function fetchAndPlayVideo(onEnded) {
-  if (ASSETS.gacha_video) {
-    playGachaVideo(ASSETS.gacha_video, onEnded);
-    return;
+  var url = getGachaVideoUrl();
+  if (url) {
+    playGachaVideo(url, onEnded);
+  } else {
+    // 動画IDが未設定の場合はスキップ
+    if (onEnded) onEnded();
   }
-  console.warn('gacha_video not cached yet');
-  if (onEnded) onEnded();
 }
 
 function playGachaVideo(videoUrl, onEnded) {
@@ -1154,7 +1155,8 @@ var user = null;
 var currentUser = null;
 var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off:'', frame:'', ur_frame:'', audio:'' };
 var GACHA_VIDEO_URL = 'GAS_PROXY';
-var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio','gacha_video'];
+var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
+var GACHA_VIDEO_FILE_ID = ''; // 設定シートから取得
 
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
@@ -1233,25 +1235,23 @@ function loadAssets(cb) {
       });
   });
 
-  loadVideoInBackground();
+  // 動画IDは設定シートから取得するためここでは読み込まない
 }
 
-function loadVideoInBackground() {
-  if (ASSETS.gacha_video) return;
-  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: 'gacha_video' }));
-  fetch(url, { redirect: 'follow' })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data && data.success && data.dataUrl) {
-        ASSETS.gacha_video = data.dataUrl;
-        console.log('gacha_video cached, len:', data.dataUrl.length);
-      } else {
-        console.warn('gacha_video failed:', data ? data.message : 'null');
-      }
-    })
-    .catch(function(e) {
-      console.warn('gacha_video fetch error:', e);
-    });
+function loadVideoFileId(cb) {
+  // 設定シートから動画ファイルIDを取得
+  api({ action: 'getEffectSettings' }, function(err, data) {
+    if (!err && data && data.success && data.settings && data.settings.gacha_video_id) {
+      GACHA_VIDEO_FILE_ID = data.settings.gacha_video_id;
+    }
+    if (cb) cb();
+  });
+}
+
+function getGachaVideoUrl() {
+  if (!GACHA_VIDEO_FILE_ID) return '';
+  // DriveのプレビューURLで直接再生
+  return 'https://drive.google.com/uc?export=download&id=' + GACHA_VIDEO_FILE_ID;
 }
 
 function positionLabels() {
@@ -1277,6 +1277,7 @@ function gotoGacha() {
   applyGachaAssets();
   loadItems();
   loadURUsers();
+  loadVideoFileId(); // 設定シートから動画IDを取得
 }
 
 function doLogout() {
@@ -1716,9 +1717,33 @@ function adminSaveEffects() {
   msgEl.style.color='#888'; msgEl.textContent='保存中...';
   api({ action: 'saveEffectSettings', ssr_trigger_rarities: triggers, ssr_effect_enabled: enabled, gacha_video_id: videoId }, function(err, data) {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='保存失敗: ' + (data ? data.message : err); return; }
-    msgEl.style.color='#080'; msgEl.textContent='演出設定を保存しました！';
+    msgEl.style.color='#080'; msgEl.textContent='演出設定を保存しました！動画を再読み込みしています...';
     if (videoId) document.getElementById('current-video-id').textContent = '現在のID: ' + videoId;
+    // 動画キャッシュをクリアして新しいIDの動画を再取得
+    ASSETS.gacha_video = '';
+    reloadVideoAsset(function() {
+      msgEl.textContent='演出設定を保存しました！動画の切り替えが完了しました。';
+    });
   });
+}
+
+function reloadVideoAsset(cb) {
+  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: 'gacha_video' }));
+  fetch(url, { redirect: 'follow' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data && data.success && data.dataUrl) {
+        ASSETS.gacha_video = data.dataUrl;
+        console.log('gacha_video reloaded, len:', data.dataUrl.length);
+      } else {
+        console.warn('gacha_video reload failed:', data ? data.message : 'null');
+      }
+      if (cb) cb();
+    })
+    .catch(function(e) {
+      console.warn('gacha_video reload error:', e);
+      if (cb) cb();
+    });
 }
 
 function adminSaveVideoId() {
