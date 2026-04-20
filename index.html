@@ -1901,6 +1901,18 @@ function adminLoadItems() {
   });
 }
 
+
+function adminDeleteItem(itemId, itemName) {
+  if (!confirm(itemName + ' を削除してもよいですか？\nこの操作は元に戻せません。')) return;
+  var msgEl = document.getElementById('admin-item-msg');
+  msgEl.style.color='#888'; msgEl.textContent='削除中...';
+  api({ action: 'adminDeleteItem', item_id: itemId }, function(err, data) {
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='削除失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent=data.message;
+    adminLoadItems();
+  });
+}
+
 function adminAddItem() {
   var id     = document.getElementById('item-add-id').value.trim();
   var name   = document.getElementById('item-add-name').value.trim();
