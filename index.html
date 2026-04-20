@@ -408,6 +408,89 @@
       background: #ff80b0; color: #fff; border: none;
       padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px;
     }
+
+    /* ===== 管理者ログインボタン ===== */
+    #admin-login-btn-wrap { text-align: center; margin-top: 12px; }
+    button.admin-entry-btn {
+      background: none; border: none; color: #bbb; font-size: 11px;
+      cursor: pointer; padding: 4px 8px; letter-spacing: 0.05em; transition: color 0.2s;
+    }
+    button.admin-entry-btn:hover { color: #888; }
+
+    /* ===== 管理者パスワードモーダル ===== */
+    #admin-pw-modal {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,0.45); align-items: center; justify-content: center;
+    }
+    #admin-pw-modal.show { display: flex; }
+    #admin-pw-box {
+      background: #fff; border-radius: 16px; padding: 28px 32px; width: 300px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18); text-align: center;
+    }
+    #admin-pw-box h3 { font-size: 15px; margin: 0 0 16px; color: #555; }
+    #admin-pw-input {
+      width: 100%; box-sizing: border-box; padding: 8px 14px; font-size: 14px;
+      border: 1px solid #ddd; border-radius: 20px; margin-bottom: 12px; outline: none;
+    }
+    #admin-pw-input:focus { border-color: #aaa; }
+    #admin-pw-btns { display: flex; gap: 8px; justify-content: center; }
+    button.admin-pw-ok {
+      background: #555; color: #fff; border: none; padding: 8px 24px;
+      border-radius: 20px; font-size: 13px; cursor: pointer; transition: background 0.2s;
+    }
+    button.admin-pw-ok:hover { background: #333; }
+    button.admin-pw-cancel {
+      background: #eee; color: #888; border: none; padding: 8px 16px;
+      border-radius: 20px; font-size: 13px; cursor: pointer;
+    }
+    #admin-pw-msg { font-size: 12px; color: #c00; min-height: 16px; margin-top: 6px; }
+
+    /* ===== 管理画面 ===== */
+    #screen-admin { max-width: 1000px; margin: 0 auto; padding: 20px 24px; box-sizing: border-box; }
+    #admin-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #f0d0e0;
+    }
+    #admin-header h1 { font-size: 18px; margin: 0; color: #555; }
+    button.admin-logout-btn {
+      background: #888; color: #fff; border: none;
+      font-size: 12px; padding: 6px 16px; cursor: pointer; border-radius: 6px;
+    }
+    .admin-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .admin-tab {
+      padding: 7px 20px; border-radius: 20px; font-size: 13px; font-weight: bold;
+      cursor: pointer; border: none; background: #eee; color: #888; transition: background 0.2s, color 0.2s;
+    }
+    .admin-tab.active { background: #ff80b0; color: #fff; }
+    .admin-panel { display: none; }
+    .admin-panel.active { display: block; }
+    .admin-panel h2 { font-size: 15px; margin: 0 0 12px; color: #555; }
+    .admin-table-wrap { overflow-x: auto; }
+    .admin-table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 500px; }
+    .admin-table th {
+      background: #fef0f6; padding: 7px 10px; border: 1px solid #f0d0e0;
+      text-align: left; white-space: nowrap;
+    }
+    .admin-table td { padding: 6px 10px; border: 1px solid #f0f0f0; vertical-align: middle; }
+    .admin-table tr:nth-child(even) td { background: #fafafa; }
+    .admin-section { margin-bottom: 28px; }
+    .admin-refresh-btn {
+      background: #ff80b0; color: #fff; border: none;
+      padding: 6px 16px; border-radius: 16px; font-size: 12px; cursor: pointer; margin-bottom: 10px;
+    }
+    .admin-serial-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .admin-serial-form input { padding: 6px 12px; border: 1px solid #ddd; border-radius: 16px; font-size: 13px; }
+    .admin-serial-form button {
+      background: #ff80b0; color: #fff; border: none;
+      padding: 6px 16px; border-radius: 16px; font-size: 13px; cursor: pointer;
+    }
+    .badge-ur  { background:#fff4cc; color:#a06000; padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; }
+    .badge-ssr { background:#fff0f6; color:#e05;    padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; }
+    .badge-sr  { background:#f0e0ff; color:#808;    padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; }
+    .badge-r   { background:#e0f0ff; color:#048;    padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; }
+    .badge-n   { background:#f5f5f5; color:#888;    padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; }
+    #admin-msg { font-size:13px; min-height:18px; margin:6px 0; }
+
   </style>
 </head>
 <body>
@@ -467,8 +550,118 @@
   </div>
   <div id="msg-login" class="msg"></div>
 </div>
+  <div id="admin-login-btn-wrap">
+    <button class="admin-entry-btn" onclick="showAdminPwModal()">管理者ログイン</button>
+  </div>
+
 
 <!-- ===== ガチャ画面 ===== -->
+<!-- ===== 管理者パスワードモーダル ===== -->
+<div id="admin-pw-modal">
+  <div id="admin-pw-box">
+    <h3>🔐 管理者ログイン</h3>
+    <input type="password" id="admin-pw-input" placeholder="パスワードを入力"
+      onkeydown="if(event.key==='Enter')doAdminLogin()">
+    <div id="admin-pw-msg"></div>
+    <div id="admin-pw-btns">
+      <button class="admin-pw-cancel" onclick="hideAdminPwModal()">キャンセル</button>
+      <button class="admin-pw-ok" onclick="doAdminLogin()">ログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 管理画面 ===== -->
+<div id="screen-admin" class="screen">
+  <div id="admin-header">
+    <h1>⚙️ 管理画面</h1>
+    <button class="admin-logout-btn" onclick="doAdminLogout()">ログアウト</button>
+  </div>
+
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchAdminTab('users')">ユーザー管理</button>
+    <button class="admin-tab" onclick="switchAdminTab('serials')">シリアル管理</button>
+    <button class="admin-tab" onclick="switchAdminTab('ur')">URホルダー</button>
+    <button class="admin-tab" onclick="switchAdminTab('logs')">ガチャ履歴</button>
+  </div>
+
+  <div id="admin-msg"></div>
+
+  <!-- ユーザー管理 -->
+  <div id="panel-users" class="admin-panel active">
+    <div class="admin-section">
+      <h2>ユーザー一覧</h2>
+      <button class="admin-refresh-btn" onclick="adminLoadUsers()">再読み込み</button>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="admin-users-table">
+          <thead><tr>
+            <th>ユーザーID</th><th>メールアドレス</th><th>ユーザー名</th>
+            <th>チケット</th><th>累計ガチャ</th><th>登録日時</th><th>有効</th>
+          </tr></thead>
+          <tbody id="admin-users-body"><tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- シリアル管理 -->
+  <div id="panel-serials" class="admin-panel">
+    <div class="admin-section">
+      <h2>シリアル一括生成</h2>
+      <div class="admin-serial-form">
+        <label>枚数<input type="number" id="gen-count" value="10" min="1" max="500" style="width:70px;"></label>
+        <label>チケット数/本<input type="number" id="gen-tickets" value="10" min="1" style="width:70px;"></label>
+        <button onclick="adminGenerateSerials()">生成する</button>
+      </div>
+      <div id="generated-serials" style="font-size:12px;color:#555;white-space:pre-wrap;max-height:200px;overflow-y:auto;background:#f9f9f9;padding:8px;border-radius:8px;display:none;"></div>
+    </div>
+    <div class="admin-section">
+      <h2>シリアル一覧</h2>
+      <button class="admin-refresh-btn" onclick="adminLoadSerials()">再読み込み</button>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="admin-serials-table">
+          <thead><tr>
+            <th>シリアルコード</th><th>チケット数</th><th>使用済み</th><th>使用者ID</th><th>使用日時</th>
+          </tr></thead>
+          <tbody id="admin-serials-body"><tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- URホルダー -->
+  <div id="panel-ur" class="admin-panel">
+    <div class="admin-section">
+      <h2>URホルダー一覧</h2>
+      <button class="admin-refresh-btn" onclick="adminLoadURHolders()">再読み込み</button>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="admin-ur-table">
+          <thead><tr>
+            <th>ユーザーID</th><th>ユーザー名</th><th>UR保有数</th>
+          </tr></thead>
+          <tbody id="admin-ur-body"><tr><td colspan="3" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ガチャ履歴 -->
+  <div id="panel-logs" class="admin-panel">
+    <div class="admin-section">
+      <h2>ガチャ履歴（直近100件）</h2>
+      <button class="admin-refresh-btn" onclick="adminLoadLogs()">再読み込み</button>
+      <div class="admin-table-wrap">
+        <table class="admin-table" id="admin-logs-table">
+          <thead><tr>
+            <th>日時</th><th>ユーザー名</th><th>アイテム名</th><th>レア度</th>
+          </tr></thead>
+          <tbody id="admin-logs-body"><tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 <div id="screen-gacha" class="screen">
   <div id="ssr-overlay"></div>
 
@@ -1112,6 +1305,204 @@ function doExchange(itemId,itemName,cost) {
       msg('msg-exchange',data.message+' ／ 残り '+data.remaining_tickets+'枚','ok');
     } else { msg('msg-exchange',data.message,'err'); }
   });
+}
+
+
+// ============================================================
+// 管理者ログイン
+// ============================================================
+function showAdminPwModal() {
+  var modal = document.getElementById('admin-pw-modal');
+  var input = document.getElementById('admin-pw-input');
+  modal.classList.add('show');
+  document.getElementById('admin-pw-msg').textContent = '';
+  input.value = '';
+  setTimeout(function(){ input.focus(); }, 100);
+}
+
+function hideAdminPwModal() {
+  document.getElementById('admin-pw-modal').classList.remove('show');
+  document.getElementById('admin-pw-input').value = '';
+  document.getElementById('admin-pw-msg').textContent = '';
+}
+
+function doAdminLogin() {
+  var pw = document.getElementById('admin-pw-input').value.trim();
+  if (!pw) { document.getElementById('admin-pw-msg').textContent = 'パスワードを入力してください'; return; }
+  document.getElementById('admin-pw-msg').textContent = '確認中...';
+  api({ action: 'verifyAdminPassword', password: pw }, function(err, data) {
+    if (err) { document.getElementById('admin-pw-msg').textContent = '通信エラー'; return; }
+    if (data.success) {
+      hideAdminPwModal();
+      gotoAdmin();
+    } else {
+      document.getElementById('admin-pw-msg').textContent = 'パスワードが違います';
+      document.getElementById('admin-pw-input').value = '';
+      document.getElementById('admin-pw-input').focus();
+    }
+  });
+}
+
+function doAdminLogout() {
+  showScreen('login');
+}
+
+function gotoAdmin() {
+  showScreen('admin');
+  switchAdminTab('users');
+}
+
+// ============================================================
+// 管理タブ切り替え
+// ============================================================
+function switchAdminTab(name) {
+  document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('.admin-panel').forEach(function(p){ p.classList.remove('active'); });
+  var tabs = { users:'panel-users', serials:'panel-serials', ur:'panel-ur', logs:'panel-logs' };
+  var tabBtns = document.querySelectorAll('.admin-tab');
+  var tabNames = ['users','serials','ur','logs'];
+  var idx = tabNames.indexOf(name);
+  if (tabBtns[idx]) tabBtns[idx].classList.add('active');
+  var panel = document.getElementById(tabs[name]);
+  if (panel) panel.classList.add('active');
+  if (name === 'users')   adminLoadUsers();
+  if (name === 'serials') adminLoadSerials();
+  if (name === 'ur')      adminLoadURHolders();
+  if (name === 'logs')    adminLoadLogs();
+}
+
+// ============================================================
+// ユーザー一覧
+// ============================================================
+function adminLoadUsers() {
+  var tbody = document.getElementById('admin-users-body');
+  tbody.innerHTML = '<tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  api({ action: 'adminGetUsers' }, function(err, data) {
+    if (err || !data.success) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      return;
+    }
+    if (!data.users.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#ccc;text-align:center;">データなし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.users.map(function(u) {
+      return '<tr>'
+        + '<td style="font-size:11px;color:#aaa;">' + u.user_id + '</td>'
+        + '<td>' + u.email + '</td>'
+        + '<td><b>' + u.username + '</b></td>'
+        + '<td style="text-align:right;">' + u.tickets + '枚</td>'
+        + '<td style="text-align:right;">' + u.total_rolls + '回</td>'
+        + '<td style="font-size:11px;">' + u.created_at + '</td>'
+        + '<td style="text-align:center;">' + (u.is_active ? '✅' : '❌') + '</td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+// ============================================================
+// シリアル一覧
+// ============================================================
+function adminLoadSerials() {
+  var tbody = document.getElementById('admin-serials-body');
+  tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  api({ action: 'adminGetSerials' }, function(err, data) {
+    if (err || !data.success) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      return;
+    }
+    if (!data.serials.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">データなし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.serials.map(function(s) {
+      var usedStyle = s.is_used ? 'color:#aaa;text-decoration:line-through;' : 'font-weight:bold;';
+      return '<tr>'
+        + '<td style="font-family:monospace;' + usedStyle + '">' + s.serial + '</td>'
+        + '<td style="text-align:right;">' + s.tickets + '枚</td>'
+        + '<td style="text-align:center;">' + (s.is_used ? '✅使用済み' : '⬜未使用') + '</td>'
+        + '<td style="font-size:11px;color:#aaa;">' + (s.used_by || '-') + '</td>'
+        + '<td style="font-size:11px;">' + (s.used_at || '-') + '</td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+function adminGenerateSerials() {
+  var count   = parseInt(document.getElementById('gen-count').value)   || 10;
+  var tickets = parseInt(document.getElementById('gen-tickets').value) || 10;
+  if (count < 1 || count > 500) { adminMsg('枚数は1〜500で入力してください', 'err'); return; }
+  adminMsg('生成中...', '');
+  api({ action: 'adminGenerateSerials', count: count, tickets: tickets }, function(err, data) {
+    if (err || !data.success) { adminMsg('生成失敗: ' + (data ? data.message : err), 'err'); return; }
+    adminMsg(count + '件のシリアルを生成しました', 'ok');
+    var el = document.getElementById('generated-serials');
+    el.style.display = 'block';
+    el.textContent = data.serials.join('
+');
+    adminLoadSerials();
+  });
+}
+
+// ============================================================
+// URホルダー一覧
+// ============================================================
+function adminLoadURHolders() {
+  var tbody = document.getElementById('admin-ur-body');
+  tbody.innerHTML = '<tr><td colspan="3" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  api({ action: 'getURUsers' }, function(err, data) {
+    if (err || !data.success) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      return;
+    }
+    if (!data.users.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:#ccc;text-align:center;">URホルダーなし</td></tr>';
+      return;
+    }
+    var sorted = data.users.slice().sort(function(a,b){ return b.ur_count - a.ur_count; });
+    tbody.innerHTML = sorted.map(function(u, i) {
+      return '<tr>'
+        + '<td style="font-size:11px;color:#aaa;">' + u.user_id + '</td>'
+        + '<td><b>' + u.username + '</b></td>'
+        + '<td style="text-align:center;"><span class="badge-ur">' + u.ur_count + '個</span></td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+// ============================================================
+// ガチャ履歴
+// ============================================================
+function adminLoadLogs() {
+  var tbody = document.getElementById('admin-logs-body');
+  tbody.innerHTML = '<tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  api({ action: 'adminGetLogs' }, function(err, data) {
+    if (err || !data.success) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      return;
+    }
+    if (!data.logs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:#ccc;text-align:center;">データなし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.logs.map(function(l) {
+      var r = l.rarity.toLowerCase();
+      var badge = '<span class="badge-' + r + '">' + l.rarity + '</span>';
+      return '<tr>'
+        + '<td style="font-size:11px;">' + l.rolled_at + '</td>'
+        + '<td>' + l.username + '</td>'
+        + '<td>' + l.item_name + '</td>'
+        + '<td>' + badge + '</td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+function adminMsg(text, cls) {
+  var el = document.getElementById('admin-msg');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = cls === 'err' ? '#c00' : cls === 'ok' ? '#080' : '#666';
 }
 
 </script>
