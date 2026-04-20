@@ -5,6 +5,119 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>ガチャシステム</title>
   <style>
+    /* ===== ログイン画面 ===== */
+    .tab-btns {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      position: absolute;
+      top: -38px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      white-space: nowrap;
+    }
+    .tab-btn-item {
+      padding: 6px 18px;
+      font-size: 13px;
+      font-weight: bold;
+      background: #ccc;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      opacity: 0.45;
+      transition: opacity 0.25s, background 0.25s;
+    }
+    .tab-btn-item.active { background: #444; opacity: 1; }
+
+    .card-stage {
+      position: relative;
+      margin-top: 44px;
+      overflow: visible;
+      width: 140%;
+      margin-left: -20%;
+      aspect-ratio: 1920 / 1080;
+    }
+    .tab-card {
+      position: absolute;
+      top: 0; left: 0;
+      width: calc(100% - 12px);
+      aspect-ratio: 1920 / 1080;
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      background-color: rgba(200,200,200,0.15);
+      border: none;
+      padding: 12% 36% 11% 36%;
+      box-sizing: border-box;
+      transform-origin: top center;
+      transition: transform 0.4s ease, opacity 0.4s ease;
+      cursor: pointer;
+    }
+    .tab-card.front {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      z-index: 2;
+    }
+    .tab-card.back {
+      transform: scale(0.86) translateX(46%) translateY(14px);
+      opacity: 0.65;
+      z-index: 1;
+    }
+    .card-tab-label { display: none; }
+    .tab-card label {
+      display: block;
+      font-size: clamp(10px,1.6vw,13px);
+      margin-bottom: 3px;
+      color: #444;
+    }
+    .tab-card input {
+      width: 100%; box-sizing: border-box;
+      padding: clamp(3px,0.8vw,6px) 8px;
+      font-size: clamp(10px,1.6vw,13px);
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      margin-bottom: clamp(2px,0.5vw,5px);
+      background: rgba(255,255,255,0.5);
+      pointer-events: none;
+    }
+    .tab-card.front input {
+      background: rgba(255,255,255,0.95);
+      border-color: #bbb;
+      pointer-events: auto;
+    }
+    #login-btn-wrap {
+      text-align: center;
+      margin-top: 16px;
+      position: relative;
+      z-index: 5;
+    }
+    button.main-btn {
+      display: inline-block;
+      min-width: 200px;
+      padding: 14px 40px;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      color: #fff;
+      background: linear-gradient(135deg, #ff80b0, #ffb347);
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+      margin-top: 8px;
+    }
+    button.main-btn:hover { transform: scale(1.04); }
+    button.main-btn:active { transform: scale(0.97); }
+    button#btn-login {
+      background: linear-gradient(135deg, #80c8ff, #b47fff);
+      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
+    }
+    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
+    .err { color: #c00; }
+    .ok  { color: #080; }
+
     * { box-sizing: border-box; }
     body {
       font-family: sans-serif;
@@ -102,6 +215,34 @@
       }
       #trade-wrap, #ssr-wrap { }
       #ur-wrap { grid-column: 1 / -1; }
+    /* ===== 左カラム（PC） ===== */
+    #ur-wrap-inner {
+      position: relative;
+      width: 100%;
+    }
+    #ur-frame-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+    #ur-name-text {
+      position: absolute;
+      /* URフレームの白い名前エリア：下部55%〜83% 左右12% */
+      top: 57%; bottom: 14%;
+      left: 12%; right: 12%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: clamp(12px, 1.8vw, 16px);
+      font-weight: bold;
+      color: #ff80b0;
+      text-shadow: 0 1px 3px rgba(255,255,255,0.8);
+      transition: opacity 0.4s;
+      pointer-events: none;
+      overflow: hidden;
+    }
 
       /* 中央カラム */
       .gacha-center { order: 1; }
@@ -130,85 +271,21 @@
       }
       #neko-wrap img { width: 80%; max-width: 120px; }
 
-      /* SSRランプサイズ */
-      #ssr-wrap img { width: 90%; }
-
-      /* シリアル・交換セクション */
-      #serial-section, #exchange-section {
-        padding: 0 8px 12px;
-      }
-      #serial-input { width: 180px; font-size: 12px; }
-
-      /* ローディング */
-      #screen-loading { padding: 20px; }
-
-      /* ログイン画面 */
-      #screen-login { padding: 8px; margin: 10px auto; }
-      .card-stage { width: 120%; margin-left: -10%; margin-top: 50px; }
-      .tab-btns { top: -42px; }
+      /* SSRランプ：ガチャ演出左下に絶対配置 */
+    #ssr-wrap {
+      position: absolute;
+      bottom: -30px;
+      left: -20px;
+      width: 160px;
+      z-index: 10;
+      pointer-events: none;
     }
-
-    /* ===== 左カラム ===== */
-    .gacha-left { display: flex; flex-direction: column; gap: 14px; }
-
-    #trade-wrap img {
-      width: 100%;
-      object-fit: contain;
-      cursor: pointer;
-    }
-
-    /* URボックス（画像のみ） */
-    #ur-wrap { width: 100%; }
-    #ur-frame-img {
-      width: 100%;
-      object-fit: contain;
-    }
-
-    /* SSRランプは中央カラム内に移動済み */
-
-    /* ===== 中央カラム ===== */
-    .gacha-center { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-
-    /* 演出エリア＋SSRラップ */
-    #gacha-stage-wrap {
-      position: relative;
-      width: 100%;
-    }
-
-    /* 演出エリア（16:9） */
-    #gacha-stage {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      background: #fff;
-      border-radius: 20px;
-      box-shadow: 0 2px 20px rgba(0,0,0,0.08);
-      display: flex; align-items: center; justify-content: center;
-      overflow: hidden;
-      position: relative;
-    }
-    #gacha-idle { font-size: clamp(14px,2vw,20px); color: #ccc; font-weight: bold; }
-    #gacha-result-display {
-      display: none; flex-direction: column;
-      align-items: center; gap: 6px;
-      padding: 12px; width: 100%; overflow-y: auto;
-    }
-    .result-card {
-      padding: 7px 16px; border-radius: 20px;
-      font-size: 14px; font-weight: bold;
-      color: #fff; width: 88%; text-align: center;
-    }
-    .result-card.SSR { background: linear-gradient(90deg,#f9c,#f6a); box-shadow: 0 0 12px #f9c; }
-    .result-card.SR  { background: linear-gradient(90deg,#c9f,#a6f); }
-    .result-card.R   { background: linear-gradient(90deg,#9cf,#6af); }
-    .result-card.N   { background: #ccc; color: #555; }
-
-    /* SSRランプ：左カラム下部 */
-    #ssr-wrap { width: 100%; }
     #ssr-wrap img {
       width: 100%;
       height: auto;
+      display: block;
       object-fit: contain;
-      opacity: 0.45;
+      opacity: 0.5;
       transition: opacity 0.3s, filter 0.3s;
     }
     #ssr-wrap img.lit { opacity: 1; filter: drop-shadow(0 0 14px #f9c); }
@@ -342,120 +419,7 @@
       font-size: 12px; padding: 4px 12px; cursor: pointer; border-radius: 12px;
     }
 
-        /* ===== ログイン画面 ===== */
-    .tab-btns {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      position: absolute;
-      top: -38px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 20;
-      white-space: nowrap;
-    }
-    .tab-btn-item {
-      padding: clamp(4px,1vw,6px) clamp(10px,2.5vw,18px);
-      font-size: clamp(11px,1.8vw,13px);
-      font-weight: bold;
-      background: #ccc;
-      color: #fff;
-      border: none;
-      border-radius: 20px;
-      cursor: pointer;
-      opacity: 0.45;
-      transition: opacity 0.25s, background 0.25s;
-      letter-spacing: 0.05em;
-    }
-    .tab-btn-item.active { background: #444; opacity: 1; }
-
-    .card-stage {
-      position: relative;
-      margin-top: 44px;
-      overflow: visible;
-      width: 140%;
-      margin-left: -20%;
-      /* frontカードの高さを継承するためmin-heightを設定 */
-    }
-    .tab-card {
-      position: relative; top: 0; left: 0;
-      width: calc(100% - 12px);
-      aspect-ratio: 1920 / 1080;
-      background-size: 100% 100%;
-      background-repeat: no-repeat;
-      background-color: rgba(200,200,200,0.15); /* フレーム未ロード時の仮背景 */
-      border: none;
-      padding: 12% 36% 11% 36%;
-      box-sizing: border-box;
-      transform-origin: top center;
-      transition: transform 0.4s ease, opacity 0.4s ease;
-      cursor: pointer;
-    }
-    .tab-card.front {
-      position: relative; /* 高さをstageに伝える */
-      left: 0;
-      transform: scale(1) translateY(0);
-      opacity: 1;
-      z-index: 2;
-    }
-    .tab-card.back {
-      position: absolute; /* backはabsoluteのまま */
-      left: 0;
-      transform: scale(0.86) translateX(46%) translateY(14px);
-      opacity: 0.65;
-      z-index: 1;
-    }
-    .card-title { display: none; }
-    .tab-card label { display: block; font-size: clamp(10px,1.6vw,13px); margin-bottom: 3px; color: #444; }
-    .tab-card input {
-      width: 100%; box-sizing: border-box;
-      padding: clamp(3px,0.8vw,6px) 8px;
-      font-size: clamp(10px,1.6vw,13px);
-      border: 1px solid #ddd; border-radius: 20px;
-      margin-bottom: clamp(2px,0.5vw,5px);
-      background: rgba(255,255,255,0.5);
-      pointer-events: none;
-    }
-    .tab-card.front input {
-      background: rgba(255,255,255,0.95);
-      border-color: #bbb;
-      pointer-events: auto;
-    }
-    .card-tab-label { display: none; }
-
-    #login-btn-wrap {
-      text-align: center;
-      margin-top: 16px;
-      position: relative;
-      z-index: 5;
-    }
-    button.main-btn {
-      display: inline-block;
-      min-width: 200px;
-      padding: 14px 40px;
-      font-size: 16px;
-      font-weight: bold;
-      letter-spacing: 0.08em;
-      color: #fff;
-      background: linear-gradient(135deg, #ff80b0, #ffb347);
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      box-shadow: 0 4px 16px rgba(255,128,176,0.5);
-      transition: transform 0.15s, box-shadow 0.15s;
-      margin-top: 8px;
-    }
-    button.main-btn:hover { transform: scale(1.04); box-shadow: 0 6px 20px rgba(255,128,176,0.6); }
-    button.main-btn:active { transform: scale(0.97); }
-    button#btn-login {
-      background: linear-gradient(135deg, #80c8ff, #b47fff);
-      box-shadow: 0 4px 16px rgba(128,200,255,0.5);
-    }
-    .msg { min-height: 18px; font-size: 14px; margin-top: 8px; text-align: center; }
-    .err { color: #c00; }
-    .ok  { color: #080; }
-
-    /* ===== ガチャ画面 ===== */
+        /* ===== ガチャ画面 ===== */
     #gacha-wrap {
       display: grid;
       grid-template-columns: 200px 1fr 200px;
@@ -594,7 +558,7 @@
       transition: width 0.3s ease;
     "></div>
   </div>
-  <div id="load-text" style="font-size:13px; color:#aaa;">読み込んでいます...</div>
+  <div id="load-text" style="font-size:13px; color:#aaa;">素材を読み込んでいます...</div>
 </div>
 
 <!-- ===== ログイン画面 ===== -->
@@ -656,19 +620,12 @@
         <img id="trade-img" src="" alt="交換所" onclick="showExchange()">
       </div>
 
-      <!-- SSRランプ（交換所の下） -->
-      <div id="ssr-wrap">
-        <img id="ssr-lamp" src="" alt="SSR">
-      </div>
-
-      <!-- URを出したユーザー（SSRの下） -->
-      <div id="ur-wrap" style="position:relative;">
-        <img id="ur-frame-img" src="" alt="" style="width:100%;object-fit:contain;display:block;">
-        <div id="ur-name-text" style="
-          position:absolute; bottom:20%; left:10%; right:10%;
-          text-align:center; font-size:15px; font-weight:bold;
-          color:#ff80b0; text-shadow:0 1px 3px rgba(255,255,255,0.8);
-          transition:opacity 0.4s; pointer-events:none;">－</div>
+      <!-- URを出したユーザー -->
+      <div id="ur-wrap">
+        <div id="ur-wrap-inner">
+          <img id="ur-frame-img" src="" alt="" style="width:100%;height:auto;display:block;">
+          <div id="ur-name-text">－</div>
+        </div>
       </div>
     </div>
 
@@ -676,6 +633,10 @@
     <div class="gacha-center">
       <!-- 演出エリア -->
       <div id="gacha-stage-wrap" style="position:relative;width:100%;">
+        <!-- SSRランプ：演出エリア左下に少しかかる位置 -->
+        <div id="ssr-wrap">
+          <img id="ssr-lamp" src="" alt="SSR">
+        </div>
       <!-- 演出エリア（白いカード） -->
       <div id="gacha-stage">
         <div id="gacha-idle">ガチャを引いてね！</div>
@@ -683,7 +644,6 @@
         <video id="gacha-video"
           style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
           playsinline
-          muted
           preload="none">
         </video>
         <div id="gacha-result-display"></div>
@@ -778,7 +738,7 @@ function loadURUsers() {
 function startURDisplay() {
   if (urDisplayTimer) clearInterval(urDisplayTimer);
   showRandomURUser(); // 即座に1件表示
-  urDisplayTimer = setInterval(showRandomURUser, 5000);
+  urDisplayTimer = setInterval(showRandomURUser, 3000);
 }
 
 function showRandomURUser() {
@@ -1131,9 +1091,14 @@ function loadVideoInBackground() {
 }
 
 function positionLabels() {
-  var front=document.querySelector('.tab-card.front');
+  // aspect-ratioでcard-stageの高さは自動計算されるので不要
+  // ただしiOS対応のため念のため設定
   var stage=document.getElementById('card-stage');
-  if (front&&stage) stage.style.height=front.offsetHeight+'px';
+  if (stage) {
+    var w = stage.offsetWidth;
+    var h = Math.round(w * 1080 / 1920);
+    if (h > 0) stage.style.height = h + 'px';
+  }
 }
 window.addEventListener('resize', positionLabels);
 
