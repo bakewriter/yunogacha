@@ -535,28 +535,6 @@
       .gacha-btn img { width: 80px; }
     }
 
-    /* ===== スマホ専用（600px以下） ===== */
-    @media (max-width: 600px) {
-      body { max-width: none; margin: 0; padding: 0; }
-      #screen-login { max-width: 100%; padding: 8px; margin: 10px auto; }
-      #gacha-header { padding: 6px 10px; }
-      #gacha-header h1 { font-size: 14px; }
-      #gacha-user-info { display: none; }
-      .logout-btn { font-size: 11px; padding: 4px 8px; }
-      #gacha-wrap {
-        grid-template-columns: 1fr !important;
-        padding: 4px 8px;
-        gap: 8px;
-      }
-      .gacha-left { flex-direction: row; flex-wrap: wrap; }
-      .gacha-center { width: 100%; }
-      .gacha-right { flex-direction: row; flex-wrap: wrap; }
-      #history-wrap { width: 100%; }
-      #ticket-wrap { width: 60%; }
-      #neko-wrap { width: 38%; }
-      #neko-wrap img { width: 100%; }
-      .gacha-btn img { width: clamp(80px, 28vw, 130px) !important; }
-    }
   </style>
 </head>
 <body>
