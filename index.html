@@ -1438,8 +1438,7 @@ function adminGenerateSerials() {
     adminMsg(count + '件のシリアルを生成しました', 'ok');
     var el = document.getElementById('generated-serials');
     el.style.display = 'block';
-    el.textContent = data.serials.join('
-');
+    el.textContent = data.serials.join('\n');
     adminLoadSerials();
   });
 }
