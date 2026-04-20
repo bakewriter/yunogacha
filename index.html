@@ -490,6 +490,32 @@
     .badge-r   { background:#e0f0ff; color:#048;    padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; }
     .badge-n   { background:#f5f5f5; color:#888;    padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; }
     #admin-msg { font-size:13px; min-height:18px; margin:6px 0; }
+    /* ===== トグルスイッチ ===== */
+    .toggle-switch { position:relative; display:inline-block; width:46px; height:26px; }
+    .toggle-switch input { opacity:0; width:0; height:0; }
+    .toggle-slider {
+      position:absolute; cursor:pointer; inset:0;
+      background:#ccc; border-radius:26px; transition:.3s;
+    }
+    .toggle-slider:before {
+      content:''; position:absolute;
+      width:20px; height:20px; left:3px; bottom:3px;
+      background:#fff; border-radius:50%; transition:.3s;
+    }
+    .toggle-switch input:checked + .toggle-slider { background:#ff80b0; }
+    .toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
+
+    /* ===== レアリティチェックラベル ===== */
+    .effect-rarity-label {
+      display:flex; align-items:center; gap:6px;
+      padding:6px 14px; border-radius:20px;
+      border:1px solid #ddd; font-size:13px; font-weight:bold;
+      cursor:pointer; transition:background 0.2s, border-color 0.2s;
+      background:#fafafa;
+    }
+    .effect-rarity-label:has(input:checked) { background:#fff0f6; border-color:#ff80b0; }
+    .effect-rarity-label input { width:14px; height:14px; cursor:pointer; }
+
 
   </style>
 </head>
@@ -582,6 +608,8 @@
     <button class="admin-tab" onclick="switchAdminTab('serials')">シリアル管理</button>
     <button class="admin-tab" onclick="switchAdminTab('ur')">URホルダー</button>
     <button class="admin-tab" onclick="switchAdminTab('logs')">ガチャ履歴</button>
+    <button class="admin-tab" onclick="switchAdminTab('items')">アイテム管理</button>
+    <button class="admin-tab" onclick="switchAdminTab('effects')">演出管理</button>
   </div>
 
   <div id="admin-msg"></div>
@@ -658,6 +686,91 @@
         </table>
       </div>
     </div>
+  </div>
+
+
+  <!-- アイテム管理 -->
+  <div id="panel-items" class="admin-panel">
+    <div class="admin-section">
+      <h2>アイテム追加</h2>
+      <div class="admin-serial-form" style="align-items:flex-end;gap:10px;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          アイテムID
+          <input type="text" id="item-add-id" placeholder="item_007" style="width:120px;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          アイテム名
+          <input type="text" id="item-add-name" placeholder="例：幻の剣" style="width:140px;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          レアリティ
+          <select id="item-add-rarity" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
+            <option value="C">C</option>
+            <option value="R">R</option>
+            <option value="SR">SR</option>
+            <option value="SSR" selected>SSR</option>
+            <option value="UR">UR</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          排出確率(%)
+          <input type="number" id="item-add-prob" value="1" min="0.01" max="100" step="0.01" style="width:80px;">
+        </label>
+        <button onclick="adminAddItem()" style="height:34px;align-self:flex-end;">追加する</button>
+      </div>
+      <div id="admin-item-add-msg" style="font-size:12px;min-height:16px;margin-top:4px;"></div>
+    </div>
+    <div class="admin-section">
+      <h2>アイテム一覧</h2>
+      <button class="admin-refresh-btn" onclick="adminLoadItems()">再読み込み</button>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr>
+            <th>アイテムID</th><th>アイテム名</th><th>レアリティ</th><th>排出確率</th><th>有効</th><th>操作</th>
+          </tr></thead>
+          <tbody id="admin-items-body"><tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+        </table>
+      </div>
+      <div id="admin-item-msg" style="font-size:12px;min-height:16px;margin-top:6px;"></div>
+    </div>
+  </div>
+
+  <!-- 演出管理 -->
+  <div id="panel-effects" class="admin-panel">
+    <div class="admin-section">
+      <h2>SSRランプ演出設定</h2>
+      <p style="font-size:13px;color:#888;margin:0 0 12px;">ランプ・フラッシュ・効果音が発動するレアリティを選択してください</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <label class="effect-rarity-label"><input type="checkbox" class="ssr-trigger-chk" value="C"> C</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="ssr-trigger-chk" value="R"> R</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="ssr-trigger-chk" value="SR"> SR</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="ssr-trigger-chk" value="SSR" checked> SSR</label>
+        <label class="effect-rarity-label"><input type="checkbox" class="ssr-trigger-chk" value="UR" checked> UR</label>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <span style="font-size:13px;font-weight:bold;color:#555;">演出ON/OFF</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="ssr-effect-toggle" checked onchange="adminToggleSSREffect(this)">
+          <span class="toggle-slider"></span>
+        </label>
+        <span id="ssr-effect-status" style="font-size:13px;color:#080;">ON</span>
+      </div>
+    </div>
+    <div class="admin-section">
+      <h2>ガチャ動画設定</h2>
+      <p style="font-size:13px;color:#888;margin:0 0 10px;">Google DriveのファイルIDを入力してください<br>（共有URL: drive.google.com/file/d/<b>【ここがID】</b>/view）</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input type="text" id="gacha-video-id-input" placeholder="GoogleDriveファイルID"
+          style="padding:6px 12px;border:1px solid #ddd;border-radius:16px;font-size:13px;width:300px;">
+        <button class="admin-refresh-btn" style="margin:0;" onclick="adminSaveVideoId()">保存する</button>
+      </div>
+      <div id="current-video-id" style="font-size:11px;color:#aaa;margin-top:6px;"></div>
+    </div>
+    <div style="margin-top:8px;">
+      <button class="admin-refresh-btn" onclick="adminSaveEffects()">演出設定を保存</button>
+      <button class="admin-refresh-btn" style="background:#888;margin-left:8px;" onclick="adminLoadEffects()">再読み込み</button>
+    </div>
+    <div id="admin-effect-msg" style="font-size:13px;min-height:18px;margin-top:8px;"></div>
   </div>
 
 </div>
@@ -1358,9 +1471,9 @@ function gotoAdmin() {
 function switchAdminTab(name) {
   document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.remove('active'); });
   document.querySelectorAll('.admin-panel').forEach(function(p){ p.classList.remove('active'); });
-  var tabs = { users:'panel-users', serials:'panel-serials', ur:'panel-ur', logs:'panel-logs' };
+  var tabs = { users:'panel-users', serials:'panel-serials', ur:'panel-ur', logs:'panel-logs', items:'panel-items', effects:'panel-effects' };
   var tabBtns = document.querySelectorAll('.admin-tab');
-  var tabNames = ['users','serials','ur','logs'];
+  var tabNames = ['users','serials','ur','logs','items','effects'];
   var idx = tabNames.indexOf(name);
   if (tabBtns[idx]) tabBtns[idx].classList.add('active');
   var panel = document.getElementById(tabs[name]);
@@ -1369,6 +1482,8 @@ function switchAdminTab(name) {
   if (name === 'serials') adminLoadSerials();
   if (name === 'ur')      adminLoadURHolders();
   if (name === 'logs')    adminLoadLogs();
+  if (name === 'items')   adminLoadItems();
+  if (name === 'effects') adminLoadEffects();
 }
 
 // ============================================================
@@ -1495,6 +1610,118 @@ function adminLoadLogs() {
         + '</tr>';
     }).join('');
   });
+}
+
+
+// ============================================================
+// アイテム管理
+// ============================================================
+function adminLoadItems() {
+  var tbody = document.getElementById('admin-items-body');
+  tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  api({ action: 'getItems' }, function(err, data) {
+    if (err || !data.success) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      return;
+    }
+    if (!data.items.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">アイテムなし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.items.map(function(item) {
+      var r = item.rarity.toLowerCase();
+      var badge = '<span class="badge-' + r + '">' + item.rarity + '</span>';
+      return '<tr>'
+        + '<td style="font-size:11px;font-family:monospace;">' + item.item_id + '</td>'
+        + '<td><b>' + item.item_name + '</b></td>'
+        + '<td>' + badge + '</td>'
+        + '<td style="text-align:right;">' + item.probability + '%</td>'
+        + '<td style="text-align:center;">' + (item.is_active !== false ? '✅' : '❌') + '</td>'
+        + '<td><button onclick="adminToggleItem('' + item.item_id + '')" style="font-size:11px;padding:3px 10px;border:1px solid #ddd;border-radius:10px;cursor:pointer;background:#fff;">切替</button></td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+function adminAddItem() {
+  var id     = document.getElementById('item-add-id').value.trim();
+  var name   = document.getElementById('item-add-name').value.trim();
+  var rarity = document.getElementById('item-add-rarity').value;
+  var prob   = parseFloat(document.getElementById('item-add-prob').value);
+  var msgEl  = document.getElementById('admin-item-add-msg');
+  if (!id || !name) { msgEl.style.color='#c00'; msgEl.textContent='IDとアイテム名を入力してください'; return; }
+  if (isNaN(prob) || prob <= 0) { msgEl.style.color='#c00'; msgEl.textContent='排出確率を正しく入力してください'; return; }
+  msgEl.style.color='#888'; msgEl.textContent='追加中...';
+  api({ action: 'adminAddItem', item_id: id, item_name: name, rarity: rarity, probability: prob }, function(err, data) {
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent=name + ' を追加しました！';
+    document.getElementById('item-add-id').value='';
+    document.getElementById('item-add-name').value='';
+    adminLoadItems();
+  });
+}
+
+function adminToggleItem(itemId) {
+  api({ action: 'adminToggleItem', item_id: itemId }, function(err, data) {
+    var msgEl = document.getElementById('admin-item-msg');
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='切替失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent=data.message;
+    adminLoadItems();
+  });
+}
+
+// ============================================================
+// 演出管理
+// ============================================================
+function adminLoadEffects() {
+  api({ action: 'getEffectSettings' }, function(err, data) {
+    var msgEl = document.getElementById('admin-effect-msg');
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='設定読込失敗'; return; }
+    var s = data.settings;
+    // SSRランプトリガー
+    document.querySelectorAll('.ssr-trigger-chk').forEach(function(chk) {
+      chk.checked = s.ssr_trigger_rarities && s.ssr_trigger_rarities.indexOf(chk.value) !== -1;
+    });
+    // ON/OFF
+    var toggle = document.getElementById('ssr-effect-toggle');
+    var status = document.getElementById('ssr-effect-status');
+    toggle.checked = s.ssr_effect_enabled !== false;
+    status.textContent = toggle.checked ? 'ON' : 'OFF';
+    status.style.color  = toggle.checked ? '#080' : '#c00';
+    // 動画ID
+    if (s.gacha_video_id) {
+      document.getElementById('gacha-video-id-input').value = s.gacha_video_id;
+      document.getElementById('current-video-id').textContent = '現在のID: ' + s.gacha_video_id;
+    }
+    msgEl.style.color='#080'; msgEl.textContent='設定を読み込みました';
+  });
+}
+
+function adminToggleSSREffect(el) {
+  var status = document.getElementById('ssr-effect-status');
+  status.textContent = el.checked ? 'ON' : 'OFF';
+  status.style.color  = el.checked ? '#080' : '#c00';
+}
+
+function adminSaveEffects() {
+  var triggers = [];
+  document.querySelectorAll('.ssr-trigger-chk:checked').forEach(function(chk){ triggers.push(chk.value); });
+  var enabled  = document.getElementById('ssr-effect-toggle').checked;
+  var videoId  = document.getElementById('gacha-video-id-input').value.trim();
+  var msgEl    = document.getElementById('admin-effect-msg');
+  msgEl.style.color='#888'; msgEl.textContent='保存中...';
+  api({ action: 'saveEffectSettings', ssr_trigger_rarities: triggers, ssr_effect_enabled: enabled, gacha_video_id: videoId }, function(err, data) {
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='保存失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent='演出設定を保存しました！';
+    if (videoId) document.getElementById('current-video-id').textContent = '現在のID: ' + videoId;
+  });
+}
+
+function adminSaveVideoId() {
+  var videoId = document.getElementById('gacha-video-id-input').value.trim();
+  var msgEl   = document.getElementById('admin-effect-msg');
+  if (!videoId) { msgEl.style.color='#c00'; msgEl.textContent='ファイルIDを入力してください'; return; }
+  adminSaveEffects();
 }
 
 function adminMsg(text, cls) {
