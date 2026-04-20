@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>ガチャシステム</title>
+  <title>芥桜木ユノ4.5thスペシャルガチャ</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -13,9 +13,27 @@
       padding: 0;
       overflow-x: hidden;
       box-sizing: border-box;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(255,182,210,0.55) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 10%, rgba(255,210,230,0.45) 0%, transparent 50%),
+        radial-gradient(ellipse at 60% 80%, rgba(255,160,200,0.35) 0%, transparent 50%),
+        radial-gradient(ellipse at 10% 85%, rgba(255,200,220,0.4) 0%, transparent 45%),
+        linear-gradient(135deg, #fff0f5 0%, #ffe4ef 40%, #ffd6e8 70%, #ffe8f2 100%);
     }
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(circle, rgba(255,150,190,0.18) 1.5px, transparent 1.5px);
+      background-size: 28px 28px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body > * { position: relative; z-index: 1; }
     #screen-login {
-      max-width: 680px;
+      max-width: 860px;
       margin: 20px auto;
       padding: 12px 16px;
       box-sizing: border-box;
@@ -295,6 +313,30 @@
     }
     .tab-btn-item.active { background: #444; opacity: 1; }
 
+    #login-layout {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    #command-box-wrap {
+      flex: 0 0 160px;
+      margin-top: 44px;
+    }
+    #command-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 12px;
+      font-size: 13px;
+      border: 1px solid #ddc0e8;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.7);
+      color: #555;
+      outline: none;
+      text-align: center;
+    }
+    #command-input:focus { border-color: #cc88ff; background: rgba(255,255,255,0.95); }
+    #command-msg { font-size: 11px; color: #aa66cc; margin-top: 6px; text-align: center; min-height: 14px; }
+    #card-stage-wrap { flex: 1; min-width: 0; }
     .card-stage {
       position: relative;
       margin-top: 44px;
@@ -308,9 +350,9 @@
       aspect-ratio: 1920 / 1080;
       background-size: 100% 100%;
       background-repeat: no-repeat;
-      background-color: rgba(200,200,200,0.15);
+      background-color: transparent;
       border: none;
-      padding: 14% 32% 13% 32%;
+      padding: 16% 38% 14% 38%;
       box-sizing: border-box;
       transform-origin: top center;
       transition: transform 0.4s ease, opacity 0.4s ease;
@@ -319,16 +361,20 @@
     .tab-card.front {
       position: relative;
       left: 0;
-      transform: scale(1) translateY(0);
+      transform: scale(1) translateX(0) translateY(0);
       opacity: 1;
       z-index: 2;
+      pointer-events: auto;
     }
     .tab-card.back {
       position: absolute;
+      top: 0;
       left: 0;
-      transform: scale(0.72) translateX(58%) translateY(8px);
-      opacity: 0.65;
+      transform: scale(0.82) translateX(52%) translateY(10px);
+      opacity: 0.7;
       z-index: 1;
+      pointer-events: auto;
+      cursor: pointer;
     }
     .card-title { display: none; }
     .tab-card label { display: block; font-size: clamp(10px,1.6vw,13px); margin-bottom: 3px; color: #444; }
@@ -517,6 +563,129 @@
     .effect-rarity-label input { width:14px; height:14px; cursor:pointer; }
 
 
+
+    /* ===== 黒猫 ===== */
+    #neko-walker {
+      position: fixed;
+      bottom: 0;
+      left: 100px;
+      z-index: 0;
+      pointer-events: none;
+      transition: left 3s linear, bottom 3s linear;
+      display: none;
+    }
+    #neko-walker.flip {
+      transform: scaleX(-1);
+    }
+    .neko-svg { display: block; }
+
+    /* 歩きアニメ */
+    @keyframes walk-legs {
+      0%,100% { d: path("M8 28 Q10 22 12 28"); }
+      50%      { d: path("M8 28 Q10 34 12 28"); }
+    }
+    @keyframes tail-wave {
+      0%,100% { transform: rotate(-20deg); transform-origin: 2px 0px; }
+      50%      { transform: rotate(20deg);  transform-origin: 2px 0px; }
+    }
+    @keyframes body-bob {
+      0%,100% { transform: translateY(0px); }
+      50%      { transform: translateY(-2px); }
+    }
+    .neko-body-g {
+      animation: body-bob 0.4s ease-in-out infinite;
+    }
+    .neko-tail {
+      animation: tail-wave 0.6s ease-in-out infinite;
+      transform-origin: 2px 0px;
+    }
+    .neko-leg-fl { animation: walk-legs 0.4s ease-in-out infinite; }
+    .neko-leg-rl { animation: walk-legs 0.4s ease-in-out infinite 0.2s; }
+    .neko-leg-fr { animation: walk-legs 0.4s ease-in-out infinite 0.1s; }
+    .neko-leg-rr { animation: walk-legs 0.4s ease-in-out infinite 0.3s; }
+
+    /* 座りポーズ時は歩きアニメ停止 */
+    #neko-walker.sit .neko-body-g { animation: none; }
+    #neko-walker.sit .neko-leg-fl,
+    #neko-walker.sit .neko-leg-rl,
+    #neko-walker.sit .neko-leg-fr,
+    #neko-walker.sit .neko-leg-rr { animation: none; }
+    #neko-walker.sit .neko-tail { animation: tail-wave 1.2s ease-in-out infinite; }
+
+    /* ===== キャラ名タグ ===== */
+    .creature-name-tag {
+      position: absolute;
+      top: -28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(40,40,40,0.82);
+      color: white;
+      font-size: 9px;
+      font-weight: bold;
+      font-family: sans-serif;
+      padding: 2px 8px;
+      border-radius: 7px;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .creature-name-tag::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-left: 4px solid transparent;
+      border-right: 4px solid transparent;
+      border-top: 5px solid rgba(40,40,40,0.82);
+    }
+    /* flip時も名前は反転させない */
+    #neko-walker.flip  .creature-name-tag,
+    #lion-walker.flip  .creature-name-tag,
+    #alien-walker.flip .creature-name-tag,
+    #wolf-walker.flip  .creature-name-tag,
+    #iru-walker.flip   .creature-name-tag,
+    #yamake-walker.flip .creature-name-tag,
+    #gaua-walker.flip .creature-name-tag,
+    #mure-walker.flip   .creature-name-tag {
+      transform: translateX(-50%) scaleX(-1);
+    }
+
+    /* ===== 共通クリーチャー ===== */
+    #lion-walker, #alien-walker, #wolf-walker, #iru-walker, #yamake-walker, #gaua-walker, #mure-walker {
+      position: fixed;
+      z-index: 0;
+      pointer-events: none;
+      transition: left 3s linear, bottom 3s linear;
+      display: none;
+    }
+    #lion-walker.flip, #alien-walker.flip, #wolf-walker.flip {
+      transform: scaleX(-1);
+    }
+    .creature-body-g { animation: body-bob 0.4s ease-in-out infinite; }
+    .creature-tail   { animation: tail-wave 0.6s ease-in-out infinite; transform-origin: 2px 0px; }
+    .creature-leg-fl { animation: walk-legs 0.4s ease-in-out infinite; }
+    .creature-leg-rl { animation: walk-legs 0.4s ease-in-out infinite 0.2s; }
+    .creature-leg-fr { animation: walk-legs 0.4s ease-in-out infinite 0.1s; }
+    .creature-leg-rr { animation: walk-legs 0.4s ease-in-out infinite 0.3s; }
+    #lion-walker.sit  .creature-body-g,
+    #alien-walker.sit .creature-body-g,
+    #wolf-walker.sit  .creature-body-g,
+    #lion-walker.sit  .creature-leg-fl,
+    #lion-walker.sit  .creature-leg-rl,
+    #lion-walker.sit  .creature-leg-fr,
+    #lion-walker.sit  .creature-leg-rr,
+    #alien-walker.sit .creature-leg-fl,
+    #alien-walker.sit .creature-leg-rl,
+    #alien-walker.sit .creature-leg-fr,
+    #alien-walker.sit .creature-leg-rr,
+    #wolf-walker.sit  .creature-leg-fl,
+    #wolf-walker.sit  .creature-leg-rl,
+    #wolf-walker.sit  .creature-leg-fr,
+    #wolf-walker.sit  .creature-leg-rr { animation: none; }
+    #iru-walker.sit .creature-body-g { animation: none; }
+    #yamake-walker.sit .creature-body-g { animation: none; }
+    #gaua-walker.sit .creature-body-g { animation: none; }
+    #mure-walker.sit   .creature-body-g { animation: none; }
   </style>
 </head>
 <body>
@@ -546,8 +715,14 @@
 
 <!-- ===== ログイン画面 ===== -->
 <div id="screen-login" class="screen active">
-  <h1>ガチャシステム</h1>
+  <h1>芥桜木ユノ4.5thスペシャルガチャ</h1>
 
+  <div id="login-layout">
+  <div id="command-box-wrap">
+    <input type="text" id="command-input" placeholder="コマンド" onkeydown="if(event.key==='Enter')doCommand()">
+    <div id="command-msg"></div>
+  </div>
+  <div id="card-stage-wrap">
   <div class="card-stage" id="card-stage">
     <div class="tab-btns">
       <button class="tab-btn-item active" id="tbtn-new"   onclick="switchTab('new')">初回登録</button>
@@ -569,6 +744,8 @@
       <label>シリアルコード（BOOTHの注文番号）<input type="text" id="reg-serial" placeholder="BOOTH-XXXX-XXXX"></label>
     </div>
   </div>
+  </div><!-- /card-stage-wrap -->
+  </div><!-- /login-layout -->
 
   <div id="login-btn-wrap">
     <button id="btn-reg"   class="main-btn" onclick="doRegister()">登録してはじめる</button>
@@ -784,7 +961,7 @@
 
   <!-- ヘッダー -->
   <div id="gacha-header">
-    <h1>ガチャシステム</h1>
+    <h1>芥桜木ユノ4.5thスペシャルガチャ</h1>
     <div id="gacha-user-info"></div>
     <div id="volume-wrap">
       <span id="volume-icon">🔊</span>
@@ -1191,6 +1368,12 @@ function api(payload, cb) {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
   document.getElementById('screen-'+name).classList.add('active');
+  // ログイン画面のときだけキャラ表示（かつshowCreaturesフラグが立っている場合のみ）
+  var isLogin = (name === 'login');
+  ['neko-walker','lion-walker','alien-walker','wolf-walker','iru-walker','yamake-walker','gaua-walker','mure-walker'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = (isLogin && window.showCreatures) ? 'block' : 'none';
+  });
 }
 
 function setLoadProgress(pct, text) {
@@ -1303,6 +1486,13 @@ window.addEventListener('resize', positionLabels);
 window.onload = function() {
   positionLabels();
   setLoadProgress(5,'接続中...');
+  // 100回に1回だけキャラを表示
+  window.showCreatures = (Math.floor(Math.random() * 100) === 0);
+  var showCreatures = window.showCreatures;
+  ['neko-walker','lion-walker','alien-walker','wolf-walker','iru-walker','yamake-walker','gaua-walker','mure-walker'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.style.display = showCreatures ? 'block' : 'none';
+  });
   loadAssets(function(){
     var saved=sessionStorage.getItem('gachaUser');
     if (saved){ user=JSON.parse(saved); currentUser=user; gotoGacha(); }
@@ -1337,6 +1527,31 @@ function switchTab(name) {
   msg('msg-login','','');
 }
 
+
+// ============================================================
+// 隠しコマンド
+// ============================================================
+function doCommand() {
+  var input = document.getElementById('command-input');
+  var msgEl = document.getElementById('command-msg');
+  var cmd = input.value.trim();
+  input.value = '';
+  if (!cmd) return;
+  if (cmd === 'ちびきゃら') {
+    window.showCreatures = true;
+    ['neko-walker','lion-walker','alien-walker','wolf-walker','iru-walker','yamake-walker','gaua-walker','mure-walker'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'block';
+    });
+    msgEl.style.color = '#aa66cc';
+    msgEl.textContent = 'でたー！';
+    setTimeout(function(){ msgEl.textContent = ''; }, 2000);
+  } else {
+    msgEl.style.color = '#c00';
+    msgEl.textContent = '？';
+    setTimeout(function(){ msgEl.textContent = ''; }, 1500);
+  }
+}
 function msg(id,text,cls){ var el=document.getElementById(id); if(!el)return; el.textContent=text; el.className='msg '+(cls||''); }
 function esc(s) {
   var d = document.createElement('div');
@@ -1798,6 +2013,502 @@ function adminMsg(text, cls) {
   el.textContent = text;
   el.style.color = cls === 'err' ? '#c00' : cls === 'ok' ? '#080' : '#666';
 }
+
+</script>
+
+<!-- ===== 歩く黒猫 ===== -->
+<div id="neko-walker">
+  <svg class="neko-svg" width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+    <g class="neko-body-g">
+      <!-- 胴体 -->
+      <ellipse cx="32" cy="40" rx="16" ry="12" fill="#1a1a1a"/>
+      <!-- 頭 -->
+      <circle cx="20" cy="26" r="12" fill="#1a1a1a"/>
+      <!-- 耳 -->
+      <polygon points="11,18 8,8 18,16" fill="#1a1a1a"/>
+      <polygon points="24,16 28,7 30,17" fill="#1a1a1a"/>
+      <!-- 耳内側 -->
+      <polygon points="12,17 10,11 17,16" fill="#ff80b0"/>
+      <polygon points="25,16 28,10 29,16" fill="#ff80b0"/>
+      <!-- 目 -->
+      <ellipse cx="17" cy="26" rx="2.5" ry="3" fill="#66ff99"/>
+      <ellipse cx="24" cy="26" rx="2.5" ry="3" fill="#66ff99"/>
+      <ellipse cx="17" cy="26" rx="1.2" ry="2.5" fill="#111"/>
+      <ellipse cx="24" cy="26" rx="1.2" ry="2.5" fill="#111"/>
+      <!-- 鼻・口 -->
+      <ellipse cx="20" cy="31" rx="1.2" ry="0.9" fill="#ff80b0"/>
+      <path d="M18 32 Q20 34 22 32" stroke="#1a1a1a" stroke-width="1" fill="none"/>
+      <!-- ひげ -->
+      <line x1="4" y1="29" x2="14" y2="30" stroke="#888" stroke-width="0.8"/>
+      <line x1="4" y1="31" x2="14" y2="31" stroke="#888" stroke-width="0.8"/>
+      <line x1="26" y1="30" x2="36" y2="29" stroke="#888" stroke-width="0.8"/>
+      <line x1="26" y1="31" x2="36" y2="31" stroke="#888" stroke-width="0.8"/>
+      <!-- 前脚 -->
+      <rect class="neko-leg-fl" x="16" y="50" width="5" height="10" rx="2.5" fill="#1a1a1a"/>
+      <rect class="neko-leg-fr" x="23" y="50" width="5" height="10" rx="2.5" fill="#1a1a1a"/>
+      <!-- 後脚 -->
+      <rect class="neko-leg-rl" x="36" y="50" width="5" height="10" rx="2.5" fill="#1a1a1a"/>
+      <rect class="neko-leg-rr" x="43" y="50" width="5" height="10" rx="2.5" fill="#1a1a1a"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">いちご</div>
+</div>
+
+<script>
+
+// ============================================================
+// 歩く黒猫
+// ============================================================
+(function() {
+  var cat = document.getElementById('neko-walker');
+  if (!cat) return;
+
+  var x = 100, y = window.innerHeight - 80;
+  var vx = 1.2, vy = 0;
+  var sitting = false;
+  var sitTimer = null;
+  var moveTimer = null;
+
+  function getW() { return window.innerWidth  - 70; }
+  function getH() { return window.innerHeight - 70; }
+
+  function sit() {
+    if (sitting) return;
+    sitting = true;
+    cat.classList.add('sit');
+    cat.style.transition = 'left 0.5s, bottom 0.5s';
+    var waitTime = 2000 + Math.random() * 3000;
+    sitTimer = setTimeout(stand, waitTime);
+  }
+
+  function stand() {
+    sitting = false;
+    cat.classList.remove('sit');
+    // 新しいランダム方向へ
+    var angle = (Math.random() * 160 - 80) * Math.PI / 180;
+    var speed = 0.8 + Math.random() * 1.4;
+    vx = Math.cos(angle) * speed;
+    vy = Math.sin(angle) * speed * 0.4;
+    cat.style.transition = 'left ' + (2 + Math.random()*2) + 's linear, bottom ' + (2 + Math.random()*2) + 's linear';
+    scheduleNextAction();
+  }
+
+  function scheduleNextAction() {
+    clearTimeout(moveTimer);
+    var t = 2000 + Math.random() * 4000;
+    moveTimer = setTimeout(function() {
+      if (Math.random() < 0.35) {
+        sit();
+      } else {
+        // 方向転換
+        var angle = (Math.random() * 160 - 80) * Math.PI / 180;
+        var speed = 0.8 + Math.random() * 1.4;
+        vx = Math.cos(angle) * speed;
+        vy = Math.sin(angle) * speed * 0.4;
+        scheduleNextAction();
+      }
+    }, t);
+  }
+
+  function update() {
+    if (!sitting) {
+      x += vx;
+      y += vy;
+
+      // 壁で跳ね返る
+      if (x < 0)      { x = 0;      vx =  Math.abs(vx); }
+      if (x > getW()) { x = getW(); vx = -Math.abs(vx); }
+      if (y < 20)     { y = 20;     vy =  Math.abs(vy); }
+      if (y > getH()) { y = getH(); vy = -Math.abs(vy); }
+
+      // 向きを反転
+      if (vx < 0) { cat.classList.add('flip'); }
+      else        { cat.classList.remove('flip'); }
+
+      cat.style.left   = x + 'px';
+      cat.style.bottom = (window.innerHeight - y - 64) + 'px';
+    }
+    requestAnimationFrame(update);
+  }
+
+  // 初期位置
+  cat.style.left   = x + 'px';
+  cat.style.bottom = (window.innerHeight - y - 64) + 'px';
+
+  scheduleNextAction();
+  requestAnimationFrame(update);
+})();
+
+</script>
+
+<!-- ===== ライオン ===== -->
+<div id="lion-walker">
+  <svg width="72" height="68" viewBox="0 0 72 68" xmlns="http://www.w3.org/2000/svg">
+    <g class="creature-body-g">
+      <!-- 胴体 -->
+      <ellipse cx="36" cy="42" rx="18" ry="13" fill="#e8a020"/>
+      <!-- たてがみ -->
+      <circle cx="22" cy="26" r="17" fill="#c8640a"/>
+      <!-- 頭 -->
+      <circle cx="22" cy="26" r="13" fill="#e8a020"/>
+      <!-- 耳 -->
+      <polygon points="12,16 10,6 20,14" fill="#c8640a"/>
+      <polygon points="26,14 30,5 33,15" fill="#c8640a"/>
+      <polygon points="13,15 11,9 18,14" fill="#ffcc88"/>
+      <polygon points="27,14 30,8 32,15" fill="#ffcc88"/>
+      <!-- 目 -->
+      <ellipse cx="18" cy="24" rx="2.8" ry="2.8" fill="#ffee44"/>
+      <ellipse cx="27" cy="24" rx="2.8" ry="2.8" fill="#ffee44"/>
+      <ellipse cx="18" cy="24" rx="1.4" ry="2.2" fill="#111"/>
+      <ellipse cx="27" cy="24" rx="1.4" ry="2.2" fill="#111"/>
+      <!-- 鼻・口 -->
+      <ellipse cx="22" cy="30" rx="2" ry="1.2" fill="#c85000"/>
+      <path d="M19 32 Q22 35 25 32" stroke="#333" stroke-width="1.2" fill="none"/>
+      <!-- ひげ -->
+      <line x1="4" y1="28" x2="15" y2="29" stroke="#fff8" stroke-width="0.9"/>
+      <line x1="4" y1="31" x2="15" y2="31" stroke="#fff8" stroke-width="0.9"/>
+      <line x1="29" y1="29" x2="40" y2="28" stroke="#fff8" stroke-width="0.9"/>
+      <line x1="29" y1="31" x2="40" y2="31" stroke="#fff8" stroke-width="0.9"/>
+      <!-- 脚 -->
+      <rect class="creature-leg-fl" x="18" y="52" width="6" height="11" rx="3" fill="#e8a020"/>
+      <rect class="creature-leg-fr" x="26" y="52" width="6" height="11" rx="3" fill="#e8a020"/>
+      <rect class="creature-leg-rl" x="40" y="52" width="6" height="11" rx="3" fill="#e8a020"/>
+      <rect class="creature-leg-rr" x="48" y="52" width="6" height="11" rx="3" fill="#e8a020"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">ばけ</div>
+</div>
+
+<!-- ===== 宇宙人 ===== -->
+<div id="alien-walker">
+  <svg width="56" height="72" viewBox="0 0 56 72" xmlns="http://www.w3.org/2000/svg">
+    <g class="creature-body-g">
+      <!-- 体 -->
+      <ellipse cx="28" cy="50" rx="14" ry="16" fill="#4488ff"/>
+      <!-- 頭 -->
+      <ellipse cx="28" cy="24" rx="18" ry="20" fill="#4488ff"/>
+      <!-- 目（大きい） -->
+      <ellipse cx="20" cy="22" rx="7" ry="9" fill="#111"/>
+      <ellipse cx="36" cy="22" rx="7" ry="9" fill="#111"/>
+      <ellipse cx="18" cy="20" rx="2.5" ry="3" fill="#aaddff"/>
+      <ellipse cx="34" cy="20" rx="2.5" ry="3" fill="#aaddff"/>
+      <!-- 口 -->
+      <path d="M22 36 Q28 40 34 36" stroke="#2255cc" stroke-width="1.5" fill="none"/>
+      <!-- アンテナ -->
+      <line x1="20" y1="5" x2="16" y2="-4" stroke="#4488ff" stroke-width="2"/>
+      <circle cx="15" cy="-5" r="3" fill="#ff88ff"/>
+      <line x1="36" y1="5" x2="40" y2="-4" stroke="#4488ff" stroke-width="2"/>
+      <circle cx="41" cy="-5" r="3" fill="#ff88ff"/>
+      <!-- 腕 -->
+      <line x1="14" y1="46" x2="4" y2="56" stroke="#4488ff" stroke-width="4" stroke-linecap="round"/>
+      <line x1="42" y1="46" x2="52" y2="56" stroke="#4488ff" stroke-width="4" stroke-linecap="round"/>
+      <!-- 脚 -->
+      <rect class="creature-leg-fl" x="18" y="62" width="7" height="10" rx="3.5" fill="#4488ff"/>
+      <rect class="creature-leg-fr" x="31" y="62" width="7" height="10" rx="3.5" fill="#4488ff"/>
+      <rect class="creature-leg-rl" x="18" y="62" width="7" height="10" rx="3.5" fill="#4488ff"/>
+      <rect class="creature-leg-rr" x="31" y="62" width="7" height="10" rx="3.5" fill="#4488ff"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">ヨゾラ</div>
+</div>
+
+<!-- ===== 紫オオカミ ===== -->
+<div id="wolf-walker">
+  <svg width="72" height="68" viewBox="0 0 72 68" xmlns="http://www.w3.org/2000/svg">
+    <g class="creature-body-g">
+      <!-- 胴体 -->
+      <ellipse cx="36" cy="42" rx="19" ry="13" fill="#7722cc"/>
+      <!-- 頭 -->
+      <ellipse cx="20" cy="26" rx="14" ry="13" fill="#7722cc"/>
+      <!-- 耳（とがった） -->
+      <polygon points="10,17 6,2 18,14" fill="#7722cc"/>
+      <polygon points="24,14 28,1 32,14" fill="#7722cc"/>
+      <polygon points="11,16 8,6 17,13" fill="#cc88ff"/>
+      <polygon points="25,14 28,5 31,14" fill="#cc88ff"/>
+      <!-- 鼻先（マズル） -->
+      <ellipse cx="20" cy="32" rx="7" ry="5" fill="#9944ee"/>
+      <!-- 目 -->
+      <ellipse cx="15" cy="24" rx="3" ry="3" fill="#ffee00"/>
+      <ellipse cx="25" cy="24" rx="3" ry="3" fill="#ffee00"/>
+      <ellipse cx="15" cy="24" rx="1.5" ry="2.5" fill="#111"/>
+      <ellipse cx="25" cy="24" rx="1.5" ry="2.5" fill="#111"/>
+      <!-- 鼻 -->
+      <ellipse cx="20" cy="30" rx="2.2" ry="1.4" fill="#220044"/>
+      <!-- 口 -->
+      <path d="M17 33 Q20 36 23 33" stroke="#220044" stroke-width="1.2" fill="none"/>
+      <!-- きば -->
+      <polygon points="18,33 17,37 19,33" fill="white"/>
+      <polygon points="22,33 23,37 21,33" fill="white"/>
+      <!-- ひげ -->
+      <line x1="3" y1="29" x2="13" y2="30" stroke="#cc88ff88" stroke-width="0.9"/>
+      <line x1="3" y1="32" x2="13" y2="32" stroke="#cc88ff88" stroke-width="0.9"/>
+      <line x1="27" y1="30" x2="37" y2="29" stroke="#cc88ff88" stroke-width="0.9"/>
+      <line x1="27" y1="32" x2="37" y2="32" stroke="#cc88ff88" stroke-width="0.9"/>
+      <!-- 脚 -->
+      <rect class="creature-leg-fl" x="18" y="52" width="6" height="12" rx="3" fill="#7722cc"/>
+      <rect class="creature-leg-fr" x="26" y="52" width="6" height="12" rx="3" fill="#7722cc"/>
+      <rect class="creature-leg-rl" x="40" y="52" width="6" height="12" rx="3" fill="#7722cc"/>
+      <rect class="creature-leg-rr" x="48" y="52" width="6" height="12" rx="3" fill="#7722cc"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">ぺスカ</div>
+</div>
+
+<!-- ===== 藤の花（イル） ===== -->
+<div id="iru-walker">
+  <svg width="60" height="80" viewBox="0 0 60 80" xmlns="http://www.w3.org/2000/svg">
+    <g class="creature-body-g">
+      <!-- 茎 -->
+      <line x1="30" y1="52" x2="30" y2="75" stroke="#5a9e3a" stroke-width="3" stroke-linecap="round"/>
+      <!-- 葉っぱ左 -->
+      <ellipse cx="20" cy="66" rx="9" ry="4" fill="#6abf45" transform="rotate(-30 20 66)"/>
+      <!-- 葉っぱ右 -->
+      <ellipse cx="40" cy="62" rx="9" ry="4" fill="#6abf45" transform="rotate(30 40 62)"/>
+      <!-- 花びら（外側・藤色） -->
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#bb88ff" transform="rotate(0   30 36)"/>
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#aa77ee" transform="rotate(45  30 36)"/>
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#cc99ff" transform="rotate(90  30 36)"/>
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#aa77ee" transform="rotate(135 30 36)"/>
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#bb88ff" transform="rotate(180 30 36)"/>
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#cc99ff" transform="rotate(225 30 36)"/>
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#aa77ee" transform="rotate(270 30 36)"/>
+      <ellipse cx="30" cy="18" rx="8" ry="12" fill="#bb88ff" transform="rotate(315 30 36)"/>
+      <!-- 花びら（内側・淡い） -->
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#ddbeff" transform="rotate(22  30 36)"/>
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#eeccff" transform="rotate(67  30 36)"/>
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#ddbeff" transform="rotate(112 30 36)"/>
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#eeccff" transform="rotate(157 30 36)"/>
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#ddbeff" transform="rotate(202 30 36)"/>
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#eeccff" transform="rotate(247 30 36)"/>
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#ddbeff" transform="rotate(292 30 36)"/>
+      <ellipse cx="30" cy="22" rx="5" ry="8"  fill="#eeccff" transform="rotate(337 30 36)"/>
+      <!-- 花芯 -->
+      <circle cx="30" cy="36" r="8" fill="#ffee66"/>
+      <circle cx="30" cy="36" r="5" fill="#ffdd00"/>
+      <circle cx="30" cy="36" r="2.5" fill="#ff9900"/>
+      <!-- 顔 -->
+      <circle cx="27" cy="35" r="1.8" fill="#553300"/>
+      <circle cx="33" cy="35" r="1.8" fill="#553300"/>
+      <path d="M27 38 Q30 41 33 38" stroke="#553300" stroke-width="1.2" fill="none"/>
+      <!-- 花房（垂れ下がり） -->
+      <line x1="24" y1="48" x2="20" y2="58" stroke="#9966cc" stroke-width="1.2"/>
+      <line x1="28" y1="50" x2="26" y2="62" stroke="#9966cc" stroke-width="1.2"/>
+      <line x1="32" y1="50" x2="34" y2="62" stroke="#9966cc" stroke-width="1.2"/>
+      <line x1="36" y1="48" x2="40" y2="58" stroke="#9966cc" stroke-width="1.2"/>
+      <ellipse cx="20" cy="60" rx="3" ry="4" fill="#cc88ff"/>
+      <ellipse cx="26" cy="64" rx="3" ry="4" fill="#bb77ee"/>
+      <ellipse cx="34" cy="64" rx="3" ry="4" fill="#cc88ff"/>
+      <ellipse cx="40" cy="60" rx="3" ry="4" fill="#bb77ee"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">イル</div>
+</div>
+
+<!-- ===== 黒オオカミ（ヤマタケ） ===== -->
+<div id="yamake-walker">
+  <svg width="72" height="68" viewBox="0 0 72 68" xmlns="http://www.w3.org/2000/svg">
+    <g class="creature-body-g">
+      <!-- 胴体 -->
+      <ellipse cx="36" cy="42" rx="19" ry="13" fill="#1a1a1a"/>
+      <!-- お腹（少し明るい） -->
+      <ellipse cx="32" cy="44" rx="11" ry="8" fill="#2e2e2e"/>
+      <!-- 頭 -->
+      <ellipse cx="20" cy="26" rx="14" ry="13" fill="#1a1a1a"/>
+      <!-- 耳（とがった） -->
+      <polygon points="10,17 6,2 18,14" fill="#1a1a1a"/>
+      <polygon points="24,14 28,1 32,14" fill="#1a1a1a"/>
+      <polygon points="11,16 8,6 17,13" fill="#333"/>
+      <polygon points="25,14 28,5 31,14" fill="#333"/>
+      <!-- 鼻先（マズル） -->
+      <ellipse cx="20" cy="32" rx="7" ry="5" fill="#2a2a2a"/>
+      <!-- 目（赤く光る） -->
+      <ellipse cx="15" cy="24" rx="3" ry="3" fill="#ff2200"/>
+      <ellipse cx="25" cy="24" rx="3" ry="3" fill="#ff2200"/>
+      <ellipse cx="15" cy="24" rx="1.5" ry="2.5" fill="#220000"/>
+      <ellipse cx="25" cy="24" rx="1.5" ry="2.5" fill="#220000"/>
+      <!-- 目の光 -->
+      <circle cx="14" cy="23" r="0.8" fill="#ff6644"/>
+      <circle cx="24" cy="23" r="0.8" fill="#ff6644"/>
+      <!-- 鼻 -->
+      <ellipse cx="20" cy="30" rx="2.2" ry="1.4" fill="#111"/>
+      <!-- 口 -->
+      <path d="M17 33 Q20 36 23 33" stroke="#111" stroke-width="1.2" fill="none"/>
+      <!-- きば -->
+      <polygon points="18,33 17,37 19,33" fill="white"/>
+      <polygon points="22,33 23,37 21,33" fill="white"/>
+      <!-- ひげ -->
+      <line x1="3" y1="29" x2="13" y2="30" stroke="#44444488" stroke-width="0.9"/>
+      <line x1="3" y1="32" x2="13" y2="32" stroke="#44444488" stroke-width="0.9"/>
+      <line x1="27" y1="30" x2="37" y2="29" stroke="#44444488" stroke-width="0.9"/>
+      <line x1="27" y1="32" x2="37" y2="32" stroke="#44444488" stroke-width="0.9"/>
+      <!-- 脚 -->
+      <rect class="creature-leg-fl" x="18" y="52" width="6" height="12" rx="3" fill="#1a1a1a"/>
+      <rect class="creature-leg-fr" x="26" y="52" width="6" height="12" rx="3" fill="#1a1a1a"/>
+      <rect class="creature-leg-rl" x="40" y="52" width="6" height="12" rx="3" fill="#1a1a1a"/>
+      <rect class="creature-leg-rr" x="48" y="52" width="6" height="12" rx="3" fill="#1a1a1a"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">ヤマタケ</div>
+</div>
+
+<!-- ===== 虎柄リス（がうあ） ===== -->
+<div id="gaua-walker">
+  <svg width="52" height="72" viewBox="0 0 52 72" xmlns="http://www.w3.org/2000/svg">
+    <g class="creature-body-g">
+      <!-- ふさふさしっぽ（大きい） -->
+      <ellipse cx="38" cy="36" rx="12" ry="18" fill="#e8a020" transform="rotate(15 38 36)"/>
+      <ellipse cx="38" cy="36" rx="8"  ry="13" fill="#ffcc66" transform="rotate(15 38 36)"/>
+      <!-- 虎縞（しっぽ） -->
+      <line x1="30" y1="22" x2="46" y2="26" stroke="#8b4000" stroke-width="2" opacity="0.5"/>
+      <line x1="29" y1="30" x2="47" y2="34" stroke="#8b4000" stroke-width="2" opacity="0.5"/>
+      <line x1="30" y1="38" x2="46" y2="42" stroke="#8b4000" stroke-width="2" opacity="0.5"/>
+      <!-- 胴体 -->
+      <ellipse cx="22" cy="44" rx="11" ry="13" fill="#e8a020"/>
+      <!-- 虎縞（胴体） -->
+      <line x1="13" y1="38" x2="31" y2="40" stroke="#8b4000" stroke-width="2.5" opacity="0.5"/>
+      <line x1="12" y1="44" x2="32" y2="46" stroke="#8b4000" stroke-width="2.5" opacity="0.5"/>
+      <line x1="13" y1="50" x2="31" y2="52" stroke="#8b4000" stroke-width="2.5" opacity="0.5"/>
+      <!-- お腹 -->
+      <ellipse cx="22" cy="46" rx="7" ry="9" fill="#ffdd99"/>
+      <!-- 頭 -->
+      <circle cx="22" cy="26" r="12" fill="#e8a020"/>
+      <!-- 虎縞（頭） -->
+      <line x1="14" y1="20" x2="30" y2="22" stroke="#8b4000" stroke-width="2" opacity="0.5"/>
+      <line x1="13" y1="26" x2="31" y2="26" stroke="#8b4000" stroke-width="2" opacity="0.5"/>
+      <!-- 耳（とがった） -->
+      <polygon points="13,17 10,6 20,15" fill="#e8a020"/>
+      <polygon points="25,15 28,5 32,16" fill="#e8a020"/>
+      <polygon points="14,16 12,9 19,15" fill="#ffcc88"/>
+      <polygon points="26,15 28,8 31,16" fill="#ffcc88"/>
+      <!-- 目 -->
+      <ellipse cx="18" cy="25" rx="2.5" ry="2.8" fill="#111"/>
+      <ellipse cx="26" cy="25" rx="2.5" ry="2.8" fill="#111"/>
+      <circle cx="17" cy="24" r="0.8" fill="white"/>
+      <circle cx="25" cy="24" r="0.8" fill="white"/>
+      <!-- ほっぺ -->
+      <ellipse cx="14" cy="29" rx="3" ry="2" fill="#ffaaaa" opacity="0.7"/>
+      <ellipse cx="30" cy="29" rx="3" ry="2" fill="#ffaaaa" opacity="0.7"/>
+      <!-- 鼻・口 -->
+      <ellipse cx="22" cy="29" rx="1.5" ry="1" fill="#cc6600"/>
+      <path d="M20 31 Q22 33 24 31" stroke="#8b4000" stroke-width="1" fill="none"/>
+      <!-- 前脚 -->
+      <rect class="creature-leg-fl" x="15" y="55" width="5" height="9" rx="2.5" fill="#e8a020"/>
+      <rect class="creature-leg-fr" x="22" y="55" width="5" height="9" rx="2.5" fill="#e8a020"/>
+      <!-- 後脚 -->
+      <rect class="creature-leg-rl" x="15" y="55" width="5" height="9" rx="2.5" fill="#e8a020"/>
+      <rect class="creature-leg-rr" x="22" y="55" width="5" height="9" rx="2.5" fill="#e8a020"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">がうあ</div>
+</div>
+
+<!-- ===== 黒い宇宙人（むれ） ===== -->
+<div id="mure-walker">
+  <svg width="56" height="72" viewBox="0 0 56 72" xmlns="http://www.w3.org/2000/svg">
+    <g class="creature-body-g">
+      <!-- 体 -->
+      <ellipse cx="28" cy="50" rx="14" ry="16" fill="#111"/>
+      <!-- 頭 -->
+      <ellipse cx="28" cy="24" rx="18" ry="20" fill="#111"/>
+      <!-- 目（大きい・光る） -->
+      <ellipse cx="20" cy="22" rx="7" ry="9" fill="#1a1a1a"/>
+      <ellipse cx="36" cy="22" rx="7" ry="9" fill="#1a1a1a"/>
+      <!-- 目の光（緑） -->
+      <ellipse cx="18" cy="20" rx="2.5" ry="3" fill="#00ff88"/>
+      <ellipse cx="34" cy="20" rx="2.5" ry="3" fill="#00ff88"/>
+      <circle cx="17" cy="19" r="1" fill="#aaffdd"/>
+      <circle cx="33" cy="19" r="1" fill="#aaffdd"/>
+      <!-- 口 -->
+      <path d="M22 36 Q28 40 34 36" stroke="#222" stroke-width="1.5" fill="none"/>
+      <!-- アンテナ -->
+      <line x1="20" y1="5" x2="16" y2="-4" stroke="#111" stroke-width="2"/>
+      <circle cx="15" cy="-5" r="3" fill="#00ff88"/>
+      <line x1="36" y1="5" x2="40" y2="-4" stroke="#111" stroke-width="2"/>
+      <circle cx="41" cy="-5" r="3" fill="#00ff88"/>
+      <!-- 腕 -->
+      <line x1="14" y1="46" x2="4"  y2="56" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+      <line x1="42" y1="46" x2="52" y2="56" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+      <!-- 脚 -->
+      <rect class="creature-leg-fl" x="18" y="62" width="7" height="10" rx="3.5" fill="#111"/>
+      <rect class="creature-leg-fr" x="31" y="62" width="7" height="10" rx="3.5" fill="#111"/>
+      <rect class="creature-leg-rl" x="18" y="62" width="7" height="10" rx="3.5" fill="#111"/>
+      <rect class="creature-leg-rr" x="31" y="62" width="7" height="10" rx="3.5" fill="#111"/>
+    </g>
+  </svg>
+  <div class="creature-name-tag">むれ</div>
+</div>
+
+<script>
+
+// ============================================================
+// クリーチャー共通ウォーカー
+// ============================================================
+function createWalker(id, startX, startY, speed) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var x = startX, y = startY;
+  var angle = Math.random() * Math.PI * 2;
+  var vx = Math.cos(angle) * speed;
+  var vy = Math.sin(angle) * speed * 0.3;
+  var sitting = false;
+  var moveTimer = null;
+
+  function getW() { return window.innerWidth  - 80; }
+  function getH() { return window.innerHeight - 80; }
+
+  function sit() {
+    if (sitting) return;
+    sitting = true;
+    el.classList.add('sit');
+    setTimeout(stand, 2000 + Math.random() * 3000);
+  }
+  function stand() {
+    sitting = false;
+    el.classList.remove('sit');
+    var a = (Math.random() * 160 - 80) * Math.PI / 180;
+    vx = Math.cos(a) * speed;
+    vy = Math.sin(a) * speed * 0.3;
+    scheduleNext();
+  }
+  function scheduleNext() {
+    clearTimeout(moveTimer);
+    moveTimer = setTimeout(function() {
+      if (Math.random() < 0.3) { sit(); }
+      else {
+        var a = (Math.random() * 160 - 80) * Math.PI / 180;
+        vx = Math.cos(a) * speed;
+        vy = Math.sin(a) * speed * 0.3;
+        scheduleNext();
+      }
+    }, 2000 + Math.random() * 4000);
+  }
+  function update() {
+    if (!sitting) {
+      x += vx; y += vy;
+      if (x < 0)      { x = 0;      vx =  Math.abs(vx); }
+      if (x > getW()) { x = getW(); vx = -Math.abs(vx); }
+      if (y < 20)     { y = 20;     vy =  Math.abs(vy); }
+      if (y > getH()) { y = getH(); vy = -Math.abs(vy); }
+      if (vx < 0) el.classList.add('flip');
+      else        el.classList.remove('flip');
+      el.style.left   = x + 'px';
+      el.style.bottom = (window.innerHeight - y - 72) + 'px';
+    }
+    requestAnimationFrame(update);
+  }
+  el.style.left   = x + 'px';
+  el.style.bottom = (window.innerHeight - y - 72) + 'px';
+  scheduleNext();
+  requestAnimationFrame(update);
+}
+
+createWalker('lion-walker',  200, window.innerHeight - 100, 1.0);
+createWalker('alien-walker', 400, window.innerHeight - 120, 1.4);
+createWalker('wolf-walker',  600, window.innerHeight - 100, 1.2);
+createWalker('iru-walker',   300, window.innerHeight - 140, 1.1);
+createWalker('yamake-walker', 500, window.innerHeight - 100, 1.3);
+createWalker('gaua-walker', 150, window.innerHeight - 110, 1.5);
+createWalker('mure-walker',   700, window.innerHeight - 120, 1.3);
 
 </script>
 </body>
