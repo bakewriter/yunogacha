@@ -1057,13 +1057,13 @@ function showGachaResults(results) {
 }
 
 function fetchAndPlayVideo(onEnded) {
-  var url = getGachaVideoUrl();
-  if (url) {
-    playGachaVideo(url, onEnded);
-  } else {
-    // 動画IDが未設定の場合はスキップ
-    if (onEnded) onEnded();
-  }
+  fetchGachaVideo(function(dataUrl) {
+    if (dataUrl) {
+      playGachaVideo(dataUrl, onEnded);
+    } else {
+      if (onEnded) onEnded();
+    }
+  });
 }
 
 function playGachaVideo(videoUrl, onEnded) {
@@ -1156,7 +1156,9 @@ var currentUser = null;
 var ASSETS = { btn1:'', btn5:'', btn11:'', trade:'', neko:'', ssr_on:'', ssr_off:'', frame:'', ur_frame:'', audio:'' };
 var GACHA_VIDEO_URL = 'GAS_PROXY';
 var ASSET_KEYS = ['frame','btn1','btn5','btn11','trade','neko','ssr_on','ssr_off','ur_frame','history_frame','ticket_frame','audio'];
-var GACHA_VIDEO_FILE_ID = ''; // 設定シートから取得
+var GACHA_VIDEO_FILE_ID = '';   // 設定シートから取得したファイルID
+var GACHA_VIDEO_CACHED_ID = ''; // キャッシュ済みのファイルID
+var GACHA_VIDEO_DATA_URL  = ''; // キャッシュ済みbase64
 
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
@@ -1248,10 +1250,27 @@ function loadVideoFileId(cb) {
   });
 }
 
-function getGachaVideoUrl() {
-  if (!GACHA_VIDEO_FILE_ID) return '';
-  // DriveのプレビューURLで直接再生
-  return 'https://drive.google.com/uc?export=download&id=' + GACHA_VIDEO_FILE_ID;
+function fetchGachaVideo(onReady) {
+  // IDが変わっていたらキャッシュ破棄して再取得
+  if (GACHA_VIDEO_FILE_ID && GACHA_VIDEO_FILE_ID === GACHA_VIDEO_CACHED_ID && GACHA_VIDEO_DATA_URL) {
+    onReady(GACHA_VIDEO_DATA_URL);
+    return;
+  }
+  if (!GACHA_VIDEO_FILE_ID) {
+    onReady(null);
+    return;
+  }
+  console.log('動画取得中 ID:', GACHA_VIDEO_FILE_ID);
+  api({ action: 'getAsset', key: 'gacha_video', file_id: GACHA_VIDEO_FILE_ID }, function(err, data) {
+    if (!err && data && data.success && data.dataUrl) {
+      GACHA_VIDEO_DATA_URL  = data.dataUrl;
+      GACHA_VIDEO_CACHED_ID = GACHA_VIDEO_FILE_ID;
+      onReady(GACHA_VIDEO_DATA_URL);
+    } else {
+      console.warn('動画取得失敗:', err || (data && data.message));
+      onReady(null);
+    }
+  });
 }
 
 function positionLabels() {
