@@ -1072,33 +1072,53 @@ function playGachaVideo(videoUrl, onEnded) {
   var disp  = document.getElementById('gacha-result-display');
   if (!video) { if (onEnded) onEnded(); return; }
 
-  idle.style.display  = 'none';
-  disp.style.display  = 'none';
+  // onEndedが複数回呼ばれないようにフラグで管理
+  var finished = false;
+  function finish() {
+    if (finished) return;
+    finished = true;
+    clearTimeout(timeout);
+    video.onended  = null;
+    video.onerror  = null;
+    video.style.display = 'none';
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    idle.style.display = 'block';
+    if (onEnded) onEnded();
+  }
+
+  idle.style.display = 'none';
+  disp.style.display = 'none';
   disp.innerHTML = '';
 
   video.src = videoUrl;
   video.style.display = 'block';
   video.load();
+
+  // 再生開始できない場合のフォールバック
   video.play().catch(function(e) {
     console.warn('video play failed:', e);
-    video.style.display = 'none';
-    idle.style.display  = 'block';
-    if (onEnded) onEnded();
+    finish();
   });
 
-  var timeout = setTimeout(function() {
-    if (video.style.display !== 'none') {
-      video.pause();
-      video.style.display = 'none';
-      video.src = '';
-      if (onEnded) onEnded();
-    }
-  }, 10000);
-  video.onended = function() {
+  // 動画終了時
+  video.onended = function() { finish(); };
+
+  // 動画エラー時
+  video.onerror = function(e) {
+    console.warn('video error:', e);
+    finish();
+  };
+
+  // フォールバック用タイムアウト（動画の長さ + 余裕の60秒）
+  // 動画メタデータが読み込まれたら実際の長さに合わせて延長
+  var timeout = setTimeout(finish, 60000);
+  video.onloadedmetadata = function() {
     clearTimeout(timeout);
-    video.style.display = 'none';
-    video.src = '';
-    if (onEnded) onEnded();
+    var duration = video.duration || 60;
+    // 動画の長さ + 5秒の余裕
+    timeout = setTimeout(finish, (duration + 5) * 1000);
   };
 }
 
