@@ -726,12 +726,16 @@
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead><tr>
-            <th>アイテムID</th><th>アイテム名</th><th>レアリティ</th><th>排出確率</th><th>有効</th><th>操作</th>
+            <th>アイテムID</th><th>アイテム名</th><th>レアリティ</th><th>排出確率(%)</th><th>有効</th><th>操作</th>
           </tr></thead>
-          <tbody id="admin-items-body"><tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+          <tbody id="admin-items-body"><tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
       </div>
-      <div id="admin-item-msg" style="font-size:12px;min-height:16px;margin-top:6px;"></div>
+      <div id="admin-prob-total" style="font-size:13px;font-weight:bold;margin-top:8px;padding:6px 12px;border-radius:8px;background:#f9f9f9;display:inline-block;">合計排出確率: <span id="prob-total-val">-</span>%</div>
+      <div id="admin-item-msg" style="font-size:13px;min-height:16px;margin-top:6px;"></div>
+      <div style="margin-top:10px;">
+        <button class="admin-refresh-btn" onclick="adminSaveAllProbs()">排出確率を一括保存</button>
+      </div>
     </div>
   </div>
 
@@ -1618,14 +1622,14 @@ function adminLoadLogs() {
 // ============================================================
 function adminLoadItems() {
   var tbody = document.getElementById('admin-items-body');
-  tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
   api({ action: 'getItems' }, function(err, data) {
     if (err || !data.success) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#c00;text-align:center;">取得失敗</td></tr>';
       return;
     }
     if (!data.items.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">アイテムなし</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#ccc;text-align:center;">アイテムなし</td></tr>';
       return;
     }
     tbody.innerHTML = data.items.map(function(item) {
