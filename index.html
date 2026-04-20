@@ -1098,14 +1098,14 @@
 
       <!-- ネコキャラ（チケット追加） -->
       <div id="neko-wrap">
-        <img id="neko-img" src="" alt="チケット追加" onclick="showAddSerial()">
+        <img id="neko-img" src="" alt="BOOTHへ" onclick="window.open('https://yunosp.booth.pm/','_blank')" style="cursor:pointer;">
       </div>
     </div>
 
   </div><!-- /gacha-wrap -->
 
-  <!-- シリアル追加（折りたたみ） -->
-  <div id="serial-section" style="display:none;">
+  <!-- シリアル追加（常時表示） -->
+  <div id="serial-section">
     <h2>シリアルコード追加</h2>
     <input type="text" id="serial-input" placeholder="BOOTHの注文番号">
     <button class="add-btn" onclick="doAddSerial()">追加する</button>
@@ -1382,12 +1382,7 @@ function addHistory(item) {
   while (hist.children.length>10) hist.removeChild(hist.lastChild);
 }
 
-function showAddSerial() {
-  var s = document.getElementById('serial-section');
-  if (!s) { console.warn('serial-section not found'); return; }
-  s.style.display = (s.style.display === 'block') ? 'none' : 'block';
-  if (s.style.display === 'block') s.scrollIntoView({behavior:'smooth'});
-}
+
 
 function showExchange() {
   var s = document.getElementById('exchange-section');
