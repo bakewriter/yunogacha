@@ -215,6 +215,7 @@
       }
       #trade-wrap, #ssr-wrap { }
       #ur-wrap { grid-column: 1 / -1; }
+    } /* end @media 600px */
     /* ===== 左カラム（PC） ===== */
     #ur-wrap-inner {
       position: relative;
@@ -534,7 +535,6 @@
       h2 { font-size: 14px; }
       .gacha-btn img { width: 80px; }
     }
-
   </style>
 </head>
 <body>
@@ -622,7 +622,7 @@
       </div>
 
       <!-- URを出したユーザー -->
-      <div id="ur-wrap" style="position:relative;">
+      <div id="ur-wrap">
         <div id="ur-wrap-inner">
           <img id="ur-frame-img" src="" alt="" style="width:100%;height:auto;display:block;">
           <div id="ur-name-text">－</div>
@@ -1306,12 +1306,8 @@ function playGachaVideo(onEnded) {
   if (!video || !gachaVideoCache) { if (onEnded) onEnded(); return; }
   var idle = document.getElementById('gacha-idle');
   var disp = document.getElementById('gacha-result-display');
-  idle.style.display = 'none';
-  disp.style.display = 'none';
-  disp.innerHTML = '';
-  video.src = gachaVideoCache;
-  video.style.display = 'block';
-  video.load();
+  idle.style.display = 'none'; disp.style.display = 'none'; disp.innerHTML = '';
+  video.src = gachaVideoCache; video.style.display = 'block'; video.load();
   var t = setTimeout(function(){ video.pause(); video.style.display='none'; video.src=''; if(onEnded)onEnded(); }, 15000);
   video.onended = function(){ clearTimeout(t); video.style.display='none'; video.src=''; if(onEnded)onEnded(); };
   video.play().catch(function(){ clearTimeout(t); video.style.display='none'; idle.style.display='block'; if(onEnded)onEnded(); });
