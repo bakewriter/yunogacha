@@ -1650,7 +1650,9 @@ function fetchFSVideo(onReady) {
       FS_VIDEO_DATA_URL  = data.dataUrl;
       FS_VIDEO_CACHED_ID = FS_VIDEO_FILE_ID;
       console.log('fetchFSVideo: fetched, len=', data.dataUrl.length);
+      console.log('fetchFSVideo: calling onReady...');
       onReady(FS_VIDEO_DATA_URL);
+      console.log('fetchFSVideo: onReady called');
     } else {
       console.warn('fetchFSVideo: failed', err, data ? data.message : '');
       onReady(null);
@@ -1659,9 +1661,11 @@ function fetchFSVideo(onReady) {
 }
 
 function playFullscreenVideo(dataUrl, onEnded) {
+  console.log('playFullscreenVideo called, dataUrl len=', dataUrl ? dataUrl.length : 'null');
   var overlay = document.getElementById('fullscreen-video-overlay');
   var video   = document.getElementById('fullscreen-video');
-  if (!overlay || !video) { if (onEnded) onEnded(); return; }
+  console.log('overlay=', overlay, 'video=', video);
+  if (!overlay || !video) { console.warn('overlay or video not found'); if (onEnded) onEnded(); return; }
 
   var blobUrl = null;
   var finished = false;
@@ -1677,13 +1681,16 @@ function playFullscreenVideo(dataUrl, onEnded) {
 
   // base64をBlobに変換してBlobURLを生成（大容量動画対応）
   try {
+    console.log('FS: converting base64 to Blob...');
     var base64 = dataUrl.split(',')[1];
     var mime   = dataUrl.split(';')[0].split(':')[1];
+    console.log('FS: mime=', mime, 'base64 len=', base64 ? base64.length : 'null');
     var binary = atob(base64);
     var bytes  = new Uint8Array(binary.length);
     for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
     var blob = new Blob([bytes], { type: mime });
     blobUrl = URL.createObjectURL(blob);
+    console.log('FS: blobUrl=', blobUrl);
   } catch(e) {
     console.warn('FS video blob error:', e);
     if (onEnded) onEnded(); return;
