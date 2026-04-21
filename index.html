@@ -1243,17 +1243,23 @@ function doRoll(count) {
   msg('msg-gacha','抽選中...','');
 
   api({action:'rollGacha', user_id:currentUser.user_id, count:count}, function(err,data){
-    ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){
-      var e=document.getElementById(id); if(e) e.disabled=false;
-    });
-    if (err) { msg('msg-gacha',err,'err'); return; }
+    if (err) {
+      ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=false; });
+      msg('msg-gacha',err,'err'); return;
+    }
     if (data.success) {
       currentUser.tickets = data.remaining_tickets;
       sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
       document.getElementById('ticket-count').textContent = data.remaining_tickets;
       updateGachaBtns();
       msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
-      // フルスクリーン動画対象レアリティが含まれているか確認
+
+      function onAllDone() {
+        // 演出がすべて終わってからボタンを再有効化
+        ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=false; });
+        updateGachaBtns();
+      }
+
       var hasFSTrigger = data.results.some(function(item) {
         return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
       });
@@ -1261,16 +1267,19 @@ function doRoll(count) {
         fetchFSVideo(function(dataUrl) {
           if (dataUrl) {
             playFullscreenVideo(dataUrl, function() {
-              fetchAndPlayVideo(function() { showGachaResults(data.results); });
+              fetchAndPlayVideo(function() { showGachaResults(data.results); onAllDone(); });
             });
           } else {
-            fetchAndPlayVideo(function() { showGachaResults(data.results); });
+            fetchAndPlayVideo(function() { showGachaResults(data.results); onAllDone(); });
           }
         });
       } else {
-        fetchAndPlayVideo(function() { showGachaResults(data.results); });
+        fetchAndPlayVideo(function() { showGachaResults(data.results); onAllDone(); });
       }
-    } else { msg('msg-gacha', data.message,'err'); }
+    } else {
+      ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=false; });
+      msg('msg-gacha', data.message,'err');
+    }
   });
 }
 
@@ -1300,7 +1309,7 @@ function showGachaResults(results) {
       var exists = urUsers.some(function(u){ return u.user_id === currentUser.user_id; });
       if (!exists) urUsers.push(newUser);
       var urEl = document.getElementById('ur-name-text'); if (urEl) urEl.textContent = currentUser.username + ' さん';
-    }, 2000);
+    }, 1500);
   } else {
     if (ASSETS.ssr_off && lamp) { lamp.src = ASSETS.ssr_off; lamp.classList.remove('lit'); }
     renderResults(results, disp, idle);
