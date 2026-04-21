@@ -1440,33 +1440,37 @@ function playGachaVideo(videoUrl, onEnded) {
   disp.style.display = 'none';
   disp.innerHTML = '';
 
-  video.src = videoUrl;
+  // base64をBlobURLに変換（大容量動画対応）
+  var blobUrl = null;
+  try {
+    var base64 = videoUrl.split(',')[1];
+    var mime   = videoUrl.split(';')[0].split(':')[1];
+    var binary = atob(base64);
+    var bytes  = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+    blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  } catch(e) {
+    console.warn('gacha video blob error:', e);
+    finish(); return;
+  }
+
+  video.src = blobUrl;
   video.style.display = 'block';
   video.load();
 
-  // 再生開始できない場合のフォールバック
-  video.play().catch(function(e) {
-    console.warn('video play failed:', e);
-    finish();
-  });
-
-  // 動画終了時
-  video.onended = function() { finish(); };
-
-  // 動画エラー時
-  video.onerror = function(e) {
-    console.warn('video error:', e);
-    finish();
+  video.oncanplay = function() {
+    video.oncanplay = null;
+    video.play().catch(function(e) {
+      console.warn('video play failed:', e);
+      finish();
+    });
   };
-
-  // フォールバック用タイムアウト（動画の長さ + 余裕の60秒）
-  // 動画メタデータが読み込まれたら実際の長さに合わせて延長
+  video.onended = function() { if (blobUrl) { URL.revokeObjectURL(blobUrl); } finish(); };
+  video.onerror = function(e) { console.warn('video error:', e); finish(); };
   var timeout = setTimeout(finish, 60000);
   video.onloadedmetadata = function() {
     clearTimeout(timeout);
-    var duration = video.duration || 60;
-    // 動画の長さ + 5秒の余裕
-    timeout = setTimeout(finish, (duration + 5) * 1000);
+    timeout = setTimeout(finish, ((video.duration || 60) + 5) * 1000);
   };
 }
 
@@ -1659,23 +1663,45 @@ function playFullscreenVideo(dataUrl, onEnded) {
   var video   = document.getElementById('fullscreen-video');
   if (!overlay || !video) { if (onEnded) onEnded(); return; }
 
+  var blobUrl = null;
   var finished = false;
   function finish() {
     if (finished) return; finished = true;
     clearTimeout(timeout);
-    video.onended = null; video.onerror = null;
+    video.onended = null; video.onerror = null; video.oncanplay = null;
     video.pause(); video.removeAttribute('src'); video.load();
     overlay.style.display = 'none';
+    if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
     if (onEnded) onEnded();
   }
 
+  // base64をBlobに変換してBlobURLを生成（大容量動画対応）
+  try {
+    var base64 = dataUrl.split(',')[1];
+    var mime   = dataUrl.split(';')[0].split(':')[1];
+    var binary = atob(base64);
+    var bytes  = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+    var blob = new Blob([bytes], { type: mime });
+    blobUrl = URL.createObjectURL(blob);
+  } catch(e) {
+    console.warn('FS video blob error:', e);
+    if (onEnded) onEnded(); return;
+  }
+
   overlay.style.display = 'block';
-  video.src = dataUrl;
+  video.src = blobUrl;
   video.load();
-  video.play().catch(function(){ finish(); });
-  video.onended = function() { finish(); };
-  video.onerror = function() { finish(); };
-  var timeout = setTimeout(finish, 60000);
+  video.oncanplay = function() {
+    video.oncanplay = null;
+    video.play().catch(function(e) {
+      console.warn('FS video play failed:', e);
+      finish();
+    });
+  };
+  video.onended  = function() { finish(); };
+  video.onerror  = function(e) { console.warn('FS video error:', e); finish(); };
+  var timeout = setTimeout(function() { finish(); }, 120000);
   video.onloadedmetadata = function() {
     clearTimeout(timeout);
     timeout = setTimeout(finish, (video.duration + 5) * 1000);
