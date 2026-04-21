@@ -2346,41 +2346,42 @@ function adminToggleSSREffect(el) {
 }
 
 function adminSaveEffects() {
-  var triggers = [];
+  var triggers   = [];
   document.querySelectorAll('.ssr-trigger-chk:checked').forEach(function(chk){ triggers.push(chk.value); });
-  var enabled  = document.getElementById('ssr-effect-toggle').checked;
-  var videoId  = document.getElementById('gacha-video-id-input').value.trim();
-  var msgEl    = document.getElementById('admin-effect-msg');
+  var enabled    = document.getElementById('ssr-effect-toggle').checked;
+  var videoId    = document.getElementById('gacha-video-id-input').value.trim();
+  var fsVideoId  = document.getElementById('fullscreen-video-id-input').value.trim();
+  var fsTriggers = [];
+  document.querySelectorAll('.fs-trigger-chk:checked').forEach(function(chk){ fsTriggers.push(chk.value); });
+  var msgEl = document.getElementById('admin-effect-msg');
   msgEl.style.color='#888'; msgEl.textContent='保存中...';
-  api({ action: 'saveEffectSettings', ssr_trigger_rarities: triggers, ssr_effect_enabled: enabled, gacha_video_id: videoId }, function(err, data) {
-    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='保存失敗: ' + (data ? data.message : err); return; }
-    msgEl.style.color='#080'; msgEl.textContent='演出設定を保存しました！動画を再読み込みしています...';
-    if (videoId) document.getElementById('current-video-id').textContent = '現在のID: ' + videoId;
-    // 動画キャッシュをクリアして新しいIDの動画を再取得
-    ASSETS.gacha_video = '';
-    reloadVideoAsset(function() {
-      msgEl.textContent='演出設定を保存しました！動画の切り替えが完了しました。';
-    });
-  });
-}
 
-function reloadVideoAsset(cb) {
-  var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: 'gacha_video' }));
-  fetch(url, { redirect: 'follow' })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data && data.success && data.dataUrl) {
-        ASSETS.gacha_video = data.dataUrl;
-        console.log('gacha_video reloaded, len:', data.dataUrl.length);
-      } else {
-        console.warn('gacha_video reload failed:', data ? data.message : 'null');
-      }
-      if (cb) cb();
-    })
-    .catch(function(e) {
-      console.warn('gacha_video reload error:', e);
-      if (cb) cb();
-    });
+  api({ action: 'saveEffectSettings',
+    ssr_trigger_rarities: triggers,
+    ssr_effect_enabled:   enabled,
+    gacha_video_id:       videoId,
+    fs_video_id:          fsVideoId,
+    fs_trigger_rarities:  fsTriggers
+  }, function(err, data) {
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='保存失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent='演出設定を保存しました！';
+    // フロント変数を即時反映・キャッシュ破棄
+    SSR_TRIGGER_RARITIES = triggers;
+    SSR_EFFECT_ENABLED   = enabled;
+    if (videoId) {
+      GACHA_VIDEO_FILE_ID   = videoId;
+      GACHA_VIDEO_CACHED_ID = '';
+      GACHA_VIDEO_DATA_URL  = '';
+      document.getElementById('current-video-id').textContent = '現在のID: ' + videoId;
+    }
+    if (fsVideoId) {
+      FS_VIDEO_FILE_ID   = fsVideoId;
+      FS_VIDEO_CACHED_ID = '';
+      FS_VIDEO_DATA_URL  = '';
+      FS_TRIGGER_RARITIES = fsTriggers;
+      document.getElementById('current-fs-video-id').textContent = '現在のID: ' + fsVideoId;
+    }
+  });
 }
 
 function adminSaveVideoId() {
