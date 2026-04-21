@@ -1330,46 +1330,51 @@ function doRoll(count) {
     updateGachaBtns();
   }
 
-  // APIレスポンスを待ってから動画を振り分ける
-  api({action:'rollGacha', user_id:currentUser.user_id, count:count}, function(err, data){
-    if (err) {
-      onAllDone();
-      msg('msg-gacha', err, 'err'); return;
-    }
-    if (!data.success) {
-      onAllDone();
-      msg('msg-gacha', data.message, 'err'); return;
-    }
+  var normalVideoEnded = false;
+  var apiDone          = false;
+  var apiData          = null;
 
-    currentUser.tickets = data.remaining_tickets;
+  function tryNext() {
+    if (!normalVideoEnded || !apiDone) return;
+    if (!apiData || !apiData.success) {
+      msg('msg-gacha', apiData ? apiData.message : 'エラー', 'err');
+      onAllDone(); return;
+    }
+    currentUser.tickets = apiData.remaining_tickets;
     sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
-    document.getElementById('ticket-count').textContent = data.remaining_tickets;
+    document.getElementById('ticket-count').textContent = apiData.remaining_tickets;
     updateGachaBtns();
-    msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
+    msg('msg-gacha','残り ' + apiData.remaining_tickets + ' 枚','ok');
 
-    var hasFSTrigger = FS_VIDEO_FILE_ID && data.results.some(function(item) {
-      return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
-    });
+    var hasFSTrigger = FS_VIDEO_FILE_ID && FS_VIDEO_DATA_URL &&
+      apiData.results.some(function(item) {
+        return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
+      });
 
-    console.log('hasFSTrigger=', hasFSTrigger, 'FS_VIDEO_DATA_URL len=', FS_VIDEO_DATA_URL.length, 'results=', data.results.map(function(r){return r.rarity;}));
     if (hasFSTrigger) {
-      // FSトリガーあり → 通常演出動画終了後すぐFS動画（キャッシュ済み）を再生
-      fetchAndPlayVideo(function() {
-        console.log('fetchAndPlayVideo done, FS_VIDEO_DATA_URL len=', FS_VIDEO_DATA_URL.length);
-        // キャッシュ済みなので即座に取得できる
-        if (FS_VIDEO_DATA_URL) {
-          playFullscreenVideo(FS_VIDEO_DATA_URL, function() {
-            showGachaResults(data.results); onAllDone();
-          });
-        } else {
-          // キャッシュがない場合はそのまま結果表示
-          showGachaResults(data.results); onAllDone();
-        }
+      playFullscreenVideo(FS_VIDEO_DATA_URL, function() {
+        showGachaResults(apiData.results); onAllDone();
       });
     } else {
-      // FSトリガーなし → 通常演出動画 → 結果表示
-      fetchAndPlayVideo(function() { showGachaResults(data.results); onAllDone(); });
+      showGachaResults(apiData.results); onAllDone();
     }
+  }
+
+  // ボタンを押した瞬間に通常演出動画を即再生
+  if (GACHA_VIDEO_DATA_URL) {
+    playGachaVideo(GACHA_VIDEO_DATA_URL, function() {
+      normalVideoEnded = true;
+      tryNext();
+    });
+  } else {
+    normalVideoEnded = true;
+  }
+
+  // APIを並行して呼ぶ
+  api({action:'rollGacha', user_id:currentUser.user_id, count:count}, function(err, data){
+    apiData = err ? { success: false, message: err } : data;
+    apiDone = true;
+    tryNext();
   });
 }
 
