@@ -145,6 +145,19 @@
     .result-card.SR  { background: linear-gradient(90deg,#c9f,#a6f); }
     .result-card.R   { background: linear-gradient(90deg,#9cf,#6af); }
     .result-card.N   { background: #ccc; color: #555; }
+    .result-card.C   { background: #ccc; color: #555; }
+    .result-card.UR  {
+      background: linear-gradient(90deg,#ff4444,#ff9900,#ffee00,#44dd44,#4488ff,#aa44ff,#ff44aa);
+      background-size: 200% 100%;
+      animation: ur-rainbow 2s linear infinite;
+      box-shadow: 0 0 18px rgba(255,200,100,0.8);
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    }
+    @keyframes ur-rainbow {
+      0%   { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
 
     /* SSRランプ：左カラム下部 */
     #ssr-wrap { width: 100%; }
@@ -209,6 +222,14 @@
     .h-item.SR  { background:#f0e0ff; color:#808; }
     .h-item.R   { background:#e0f0ff; color:#048; }
     .h-item.N   { background:#f5f5f5; color:#888; }
+    .h-item.C   { background:#f5f5f5; color:#888; }
+    .h-item.UR  {
+      background: linear-gradient(90deg,#ff4444,#ff9900,#ffee00,#44dd44,#4488ff,#aa44ff,#ff44aa);
+      background-size: 200% 100%;
+      animation: ur-rainbow 2s linear infinite;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
 
     /* チケット残数 */
     #ticket-wrap {
@@ -265,7 +286,10 @@
     }
 
     /* シリアル・交換 */
-    #serial-section, #exchange-section {
+    #serial-section {
+      display: block; padding: 0 20px 16px;
+    }
+    #exchange-section {
       display: none; padding: 0 20px 16px;
     }
     #serial-section h2, #exchange-section h2 { font-size: 15px; margin-bottom: 8px; }
