@@ -1110,6 +1110,9 @@
       <div id="redeem-btn-wrap" style="margin-top:4px;">
         <button onclick="showRedeem()" style="width:100%;padding:8px;background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:bold;cursor:pointer;">アイテム引き換え</button>
       </div>
+      <div id="inventory-btn-wrap" style="margin-top:4px;">
+        <button onclick="showInventory()" style="width:100%;padding:8px;background:linear-gradient(135deg,#c9f,#a6f);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:bold;cursor:pointer;">保有アイテム一覧</button>
+      </div>
 
       <!-- SSRランプ（交換所の下） -->
       <div id="ssr-wrap">
@@ -1211,6 +1214,12 @@
     <h2>アイテム交換</h2>
     <div id="item-list"></div>
     <div id="msg-exchange" class="msg"></div>
+  </div>
+
+  <!-- 保有アイテム一覧 -->
+  <div id="inventory-section" style="display:none;padding:0 20px 16px;">
+    <h2>保有アイテム一覧</h2>
+    <div id="inventory-list"><p style="font-size:13px;color:#999;">読み込み中...</p></div>
   </div>
 
   <!-- アイテム引き換え -->
@@ -2037,6 +2046,48 @@ function doExchange(itemId,itemName,cost) {
 
 
 
+
+// ============================================================
+// 保有アイテム一覧
+// ============================================================
+function showInventory() {
+  var s = document.getElementById('inventory-section');
+  if (!s) return;
+  s.style.display = (s.style.display === 'block') ? 'none' : 'block';
+  if (s.style.display === 'block') { loadInventory(); s.scrollIntoView({behavior:'smooth'}); }
+}
+
+function loadInventory() {
+  var el = document.getElementById('inventory-list');
+  if (!el) return;
+  el.innerHTML = '<p style="font-size:13px;color:#999;">読み込み中...</p>';
+  api({ action: 'getInventory', user_id: currentUser.user_id }, function(err, data) {
+    if (err || !data.success) { el.innerHTML = '<p style="color:#c00;">取得失敗</p>'; return; }
+    if (!data.inventory || !data.inventory.length) {
+      el.innerHTML = '<p style="font-size:13px;color:#aaa;">アイテムを所持していません</p>'; return;
+    }
+    // レアリティ順に並び替え
+    var order = { UR:0, SSR:1, SR:2, R:3, C:4, N:5 };
+    var sorted = data.inventory.slice().sort(function(a,b) {
+      return (order[a.rarity] || 9) - (order[b.rarity] || 9);
+    });
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">'
+      + '<thead><tr>'
+      + '<th style="padding:7px 10px;border:1px solid #f0d0e0;background:#fef0f6;text-align:left;">アイテム名</th>'
+      + '<th style="padding:7px 10px;border:1px solid #f0d0e0;background:#fef0f6;text-align:center;">レアリティ</th>'
+      + '<th style="padding:7px 10px;border:1px solid #f0d0e0;background:#fef0f6;text-align:center;">所持数</th>'
+      + '</tr></thead><tbody>';
+    sorted.forEach(function(item) {
+      var r = item.rarity.toLowerCase();
+      html += '<tr>'
+        + '<td style="padding:6px 10px;border:1px solid #f0f0f0;background:#fff;"><b>' + item.item_name + '</b></td>'
+        + '<td style="padding:6px 10px;border:1px solid #f0f0f0;background:#fff;text-align:center;"><span class="badge-' + r + '">' + item.rarity + '</span></td>'
+        + '<td style="padding:6px 10px;border:1px solid #f0f0f0;background:#fff;text-align:center;font-weight:bold;">' + item.count + '個</td>'
+        + '</tr>';
+    });
+    el.innerHTML = html + '</tbody></table>';
+  });
+}
 // ============================================================
 // アイテム引き換え
 // ============================================================
