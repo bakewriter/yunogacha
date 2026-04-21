@@ -825,6 +825,7 @@
     <button class="admin-tab" onclick="switchAdminTab('logs')">ガチャ履歴</button>
     <button class="admin-tab" onclick="switchAdminTab('items')">アイテム管理</button>
     <button class="admin-tab" onclick="switchAdminTab('effects')">演出管理</button>
+    <button class="admin-tab" onclick="switchAdminTab('exchange')">交換管理</button>
   </div>
 
   <div id="admin-msg"></div>
@@ -840,7 +841,7 @@
             <th>ユーザーID</th><th>メールアドレス</th><th>ユーザー名</th>
             <th>チケット</th><th>累計ガチャ</th><th>登録日時</th><th>有効</th>
           </tr></thead>
-          <tbody id="admin-users-body"><tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+          <tbody id="admin-users-body"><tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -865,7 +866,7 @@
           <thead><tr>
             <th>シリアルコード</th><th>チケット数</th><th>使用済み</th><th>使用者ID</th><th>使用日時</th>
           </tr></thead>
-          <tbody id="admin-serials-body"><tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+          <tbody id="admin-serials-body"><tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -931,6 +932,17 @@
           排出確率(%)
           <input type="number" id="item-add-prob" value="1" min="0.01" max="100" step="0.01" style="width:80px;">
         </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          グッズ種別
+          <select id="item-add-type" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
+            <option value="digital">デジタル</option>
+            <option value="physical">物理グッズ</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;" id="item-add-url-wrap">
+          ダウンロードURL（デジタルのみ）
+          <input type="text" id="item-add-url" placeholder="https://..." style="width:200px;">
+        </label>
         <button onclick="adminAddItem()" style="height:34px;align-self:flex-end;">追加する</button>
       </div>
       <div id="admin-item-add-msg" style="font-size:12px;min-height:16px;margin-top:4px;"></div>
@@ -941,9 +953,9 @@
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead><tr>
-            <th>アイテムID</th><th>アイテム名</th><th>レアリティ</th><th>排出確率(%)</th><th>操作</th>
+            <th>アイテムID</th><th>アイテム名</th><th>レアリティ</th><th>排出確率(%)</th><th>種別</th><th>操作</th>
           </tr></thead>
-          <tbody id="admin-items-body"><tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+          <tbody id="admin-items-body"><tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
       </div>
       <div id="admin-prob-total" style="font-size:13px;font-weight:bold;margin-top:8px;padding:6px 12px;border-radius:8px;background:#f9f9f9;display:inline-block;">合計排出確率: <span id="prob-total-val">-</span>%</div>
@@ -1009,6 +1021,54 @@
     <div id="admin-effect-msg" style="font-size:13px;min-height:18px;margin-top:8px;"></div>
   </div>
 
+  <!-- 交換管理 -->
+  <div id="panel-exchange" class="admin-panel">
+    <div class="admin-section">
+      <h2>交換レート追加</h2>
+      <div class="admin-serial-form" style="align-items:flex-end;gap:10px;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          消費レアリティ
+          <select id="exr-cost-rarity" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
+            <option value="C">C</option>
+            <option value="R">R</option>
+            <option value="SR">SR</option>
+            <option value="SSR">SSR</option>
+            <option value="UR">UR</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          消費数
+          <input type="number" id="exr-cost-count" value="5" min="1" style="width:70px;padding:6px 8px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          交換先レアリティ
+          <select id="exr-reward-rarity" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
+            <option value="C">C</option>
+            <option value="R">R</option>
+            <option value="SR">SR</option>
+            <option value="SSR">SSR</option>
+            <option value="UR">UR</option>
+          </select>
+        </label>
+        <button onclick="adminAddExchangeRate()" style="height:34px;align-self:flex-end;background:#ff80b0;color:#fff;border:none;padding:6px 16px;border-radius:16px;font-size:13px;cursor:pointer;">追加する</button>
+      </div>
+      <div id="admin-exr-add-msg" style="font-size:12px;min-height:16px;margin-top:4px;"></div>
+    </div>
+    <div class="admin-section">
+      <h2>交換レート一覧</h2>
+      <button class="admin-refresh-btn" onclick="adminLoadExchangeRates()">再読み込み</button>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr>
+            <th>消費レアリティ</th><th>消費数</th><th>交換先レアリティ</th><th>操作</th>
+          </tr></thead>
+          <tbody id="admin-exr-body"><tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
+        </table>
+      </div>
+      <div id="admin-exr-msg" style="font-size:13px;min-height:16px;margin-top:6px;"></div>
+    </div>
+  </div>
+
 </div>
 
 <div id="screen-gacha" class="screen">
@@ -1039,6 +1099,10 @@
       <!-- 交換所ボタン -->
       <div id="trade-wrap">
         <img id="trade-img" src="" alt="交換所" onclick="showExchange()">
+      </div>
+      <!-- 引き換えボタン -->
+      <div id="redeem-btn-wrap" style="margin-top:4px;">
+        <button onclick="showRedeem()" style="width:100%;padding:8px;background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:bold;cursor:pointer;">アイテム引き換え</button>
       </div>
 
       <!-- SSRランプ（交換所の下） -->
@@ -1142,6 +1206,33 @@
     <div id="item-list"></div>
     <div id="msg-exchange" class="msg"></div>
   </div>
+
+  <!-- アイテム引き換え -->
+  <div id="redeem-section" style="display:none;padding:0 20px 16px;">
+    <h2>アイテム引き換え</h2>
+    <div id="redeem-list"></div>
+    <div id="redeem-form-wrap" style="display:none;margin-top:16px;">
+      <div id="redeem-physical-form" style="display:none;">
+        <h3 style="font-size:14px;margin:0 0 10px;color:#555;">お届け先入力</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;max-width:400px;">
+          <input type="text" id="redeem-name" placeholder="お名前" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
+          <input type="text" id="redeem-zip" placeholder="郵便番号（例：123-4567）" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
+          <input type="text" id="redeem-address" placeholder="住所" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
+          <input type="text" id="redeem-phone" placeholder="電話番号" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
+          <button onclick="submitRedeem()" style="background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border:none;padding:10px;border-radius:20px;font-size:14px;font-weight:bold;cursor:pointer;">引き換え申請する</button>
+        </div>
+      </div>
+      <div id="redeem-digital-form" style="display:none;">
+        <h3 style="font-size:14px;margin:0 0 10px;color:#555;">ダウンロードURLをメールで受け取る</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;max-width:400px;">
+          <input type="email" id="redeem-email" placeholder="メールアドレス" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
+          <button onclick="submitRedeem()" style="background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border:none;padding:10px;border-radius:20px;font-size:14px;font-weight:bold;cursor:pointer;">URLをメールで受け取る</button>
+        </div>
+      </div>
+    </div>
+    <div id="msg-redeem" class="msg"></div>
+  </div>
+
 
   <audio id="gacha-sound" preload="auto"></audio>
 </div>
@@ -1808,6 +1899,110 @@ function doExchange(itemId,itemName,cost) {
 }
 
 
+
+// ============================================================
+// アイテム引き換え
+// ============================================================
+var currentRedeemItem = null;
+
+function showRedeem() {
+  var s = document.getElementById('redeem-section');
+  if (!s) return;
+  s.style.display = (s.style.display === 'block') ? 'none' : 'block';
+  if (s.style.display === 'block') { loadRedeemItems(); s.scrollIntoView({behavior:'smooth'}); }
+}
+
+function loadRedeemItems() {
+  var el = document.getElementById('redeem-list');
+  if (!el) return;
+  el.innerHTML = '<p style="font-size:13px;color:#999;">読み込み中...</p>';
+  api({ action: 'getInventory', user_id: currentUser.user_id }, function(err, invData) {
+    if (err || !invData.success) { el.innerHTML = '<p style="color:#c00;">取得失敗</p>'; return; }
+    api({ action: 'getItems' }, function(err2, itemData) {
+      if (err2 || !itemData.success) { el.innerHTML = '<p style="color:#c00;">取得失敗</p>'; return; }
+      // 所持アイテムとマスタをマージ
+      var itemMap = {};
+      itemData.items.forEach(function(i){ itemMap[i.item_id] = i; });
+      var redeemable = invData.inventory.filter(function(i){ return i.count > 0 && itemMap[i.item_id]; });
+      if (!redeemable.length) { el.innerHTML = '<p style="font-size:13px;color:#aaa;">引き換え可能なアイテムがありません</p>'; return; }
+      var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+        + '<thead><tr style="background:#fef0f6;">'
+        + '<th style="padding:7px 10px;border:1px solid #f0d0e0;text-align:left;">アイテム名</th>'
+        + '<th style="padding:7px 10px;border:1px solid #f0d0e0;">種別</th>'
+        + '<th style="padding:7px 10px;border:1px solid #f0d0e0;">所持数</th>'
+        + '<th style="padding:7px 10px;border:1px solid #f0d0e0;">操作</th>'
+        + '</tr></thead><tbody>';
+      redeemable.forEach(function(inv) {
+        var master = itemMap[inv.item_id];
+        var typeLabel = master.item_type === 'physical' ? '物理グッズ' : 'デジタル';
+        var typeColor = master.item_type === 'physical' ? '#c85000' : '#0055cc';
+        html += '<tr>'
+          + '<td style="padding:6px 10px;border:1px solid #f0f0f0;background:#fff;"><b>' + inv.item_name + '</b></td>'
+          + '<td style="padding:6px 10px;border:1px solid #f0f0f0;background:#fff;text-align:center;color:' + typeColor + ';font-weight:bold;font-size:12px;">' + typeLabel + '</td>'
+          + '<td style="padding:6px 10px;border:1px solid #f0f0f0;background:#fff;text-align:center;">' + inv.count + '個</td>'
+          + '<td style="padding:6px 10px;border:1px solid #f0f0f0;background:#fff;text-align:center;">'
+          + '<button data-id="' + inv.item_id + '" data-type="' + (master.item_type||'digital') + '" onclick="openRedeemForm(this.dataset.id, this.dataset.type)" style="font-size:11px;padding:3px 10px;border:none;border-radius:8px;cursor:pointer;background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;">引き換える</button>'
+          + '</td></tr>';
+      });
+      el.innerHTML = html + '</tbody></table>';
+    });
+  });
+}
+
+function openRedeemForm(itemId, itemType) {
+  currentRedeemItem = { item_id: itemId, item_type: itemType };
+  var wrap = document.getElementById('redeem-form-wrap');
+  var phys = document.getElementById('redeem-physical-form');
+  var digi = document.getElementById('redeem-digital-form');
+  var msg  = document.getElementById('msg-redeem');
+  wrap.style.display = 'block';
+  msg.textContent = '';
+  if (itemType === 'physical') {
+    phys.style.display = 'block';
+    digi.style.display = 'none';
+  } else {
+    phys.style.display = 'none';
+    digi.style.display = 'block';
+    // ログイン中のメールをデフォルト入力
+    var emailEl = document.getElementById('redeem-email');
+    if (emailEl && currentUser.email) emailEl.value = currentUser.email;
+  }
+  wrap.scrollIntoView({behavior:'smooth'});
+}
+
+function submitRedeem() {
+  if (!currentRedeemItem) return;
+  var msgEl = document.getElementById('msg-redeem');
+  var payload = {
+    action: 'redeemItem',
+    user_id: currentUser.user_id,
+    item_id: currentRedeemItem.item_id,
+    item_type: currentRedeemItem.item_type
+  };
+  if (currentRedeemItem.item_type === 'physical') {
+    var name    = document.getElementById('redeem-name').value.trim();
+    var zip     = document.getElementById('redeem-zip').value.trim();
+    var address = document.getElementById('redeem-address').value.trim();
+    var phone   = document.getElementById('redeem-phone').value.trim();
+    if (!name || !zip || !address) { msgEl.style.color='#c00'; msgEl.textContent='お名前・郵便番号・住所は必須です'; return; }
+    payload.delivery_name    = name;
+    payload.delivery_zip     = zip;
+    payload.delivery_address = address;
+    payload.delivery_phone   = phone;
+  } else {
+    var email = document.getElementById('redeem-email').value.trim();
+    if (!email) { msgEl.style.color='#c00'; msgEl.textContent='メールアドレスを入力してください'; return; }
+    payload.email = email;
+  }
+  msgEl.style.color='#888'; msgEl.textContent='申請中...';
+  api(payload, function(err, data) {
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent=data.message;
+    document.getElementById('redeem-form-wrap').style.display = 'none';
+    currentRedeemItem = null;
+    loadRedeemItems();
+  });
+}
 // ============================================================
 // 管理者ログイン
 // ============================================================
@@ -1858,9 +2053,9 @@ function gotoAdmin() {
 function switchAdminTab(name) {
   document.querySelectorAll('.admin-tab').forEach(function(b){ b.classList.remove('active'); });
   document.querySelectorAll('.admin-panel').forEach(function(p){ p.classList.remove('active'); });
-  var tabs = { users:'panel-users', serials:'panel-serials', ur:'panel-ur', logs:'panel-logs', items:'panel-items', effects:'panel-effects' };
+  var tabs = { users:'panel-users', serials:'panel-serials', ur:'panel-ur', logs:'panel-logs', items:'panel-items', effects:'panel-effects', exchange:'panel-exchange' };
   var tabBtns = document.querySelectorAll('.admin-tab');
-  var tabNames = ['users','serials','ur','logs','items','effects'];
+  var tabNames = ['users','serials','ur','logs','items','effects','exchange'];
   var idx = tabNames.indexOf(name);
   if (tabBtns[idx]) tabBtns[idx].classList.add('active');
   var panel = document.getElementById(tabs[name]);
@@ -1870,7 +2065,8 @@ function switchAdminTab(name) {
   if (name === 'ur')      adminLoadURHolders();
   if (name === 'logs')    adminLoadLogs();
   if (name === 'items')   adminLoadItems();
-  if (name === 'effects') adminLoadEffects();
+  if (name === 'effects')  adminLoadEffects();
+  if (name === 'exchange') adminLoadExchangeRates();
 }
 
 // ============================================================
@@ -1878,10 +2074,10 @@ function switchAdminTab(name) {
 // ============================================================
 function adminLoadUsers() {
   var tbody = document.getElementById('admin-users-body');
-  tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
   api({ action: 'adminGetUsers' }, function(err, data) {
     if (err || !data.success) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#c00;text-align:center;">取得失敗</td></tr>';
       return;
     }
     if (!data.users.length) {
@@ -1907,10 +2103,10 @@ function adminLoadUsers() {
 // ============================================================
 function adminLoadSerials() {
   var tbody = document.getElementById('admin-serials-body');
-  tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
   api({ action: 'adminGetSerials' }, function(err, data) {
     if (err || !data.success) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#c00;text-align:center;">取得失敗</td></tr>';
       return;
     }
     if (!data.serials.length) {
@@ -2005,14 +2201,14 @@ function adminLoadLogs() {
 // ============================================================
 function adminLoadItems() {
   var tbody = document.getElementById('admin-items-body');
-  tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
   api({ action: 'getItems' }, function(err, data) {
     if (err || !data.success) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#c00;text-align:center;">取得失敗</td></tr>';
       return;
     }
     if (!data.items.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="color:#ccc;text-align:center;">アイテムなし</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#ccc;text-align:center;">アイテムなし</td></tr>';
       return;
     }
     tbody.innerHTML = data.items.map(function(item) {
@@ -2042,22 +2238,34 @@ function adminDeleteItem(itemId, itemName) {
 }
 
 function adminAddItem() {
-  var id     = document.getElementById('item-add-id').value.trim();
-  var name   = document.getElementById('item-add-name').value.trim();
-  var rarity = document.getElementById('item-add-rarity').value;
-  var prob   = parseFloat(document.getElementById('item-add-prob').value);
-  var msgEl  = document.getElementById('admin-item-add-msg');
+  var id       = document.getElementById('item-add-id').value.trim();
+  var name     = document.getElementById('item-add-name').value.trim();
+  var rarity   = document.getElementById('item-add-rarity').value;
+  var prob     = parseFloat(document.getElementById('item-add-prob').value);
+  var itemType = document.getElementById('item-add-type').value;
+  var url      = document.getElementById('item-add-url').value.trim();
+  var msgEl    = document.getElementById('admin-item-add-msg');
   if (!id || !name) { msgEl.style.color='#c00'; msgEl.textContent='IDとアイテム名を入力してください'; return; }
   if (isNaN(prob) || prob <= 0) { msgEl.style.color='#c00'; msgEl.textContent='排出確率を正しく入力してください'; return; }
   msgEl.style.color='#888'; msgEl.textContent='追加中...';
-  api({ action: 'adminAddItem', item_id: id, item_name: name, rarity: rarity, probability: prob }, function(err, data) {
+  api({ action: 'adminAddItem', item_id: id, item_name: name, rarity: rarity, probability: prob, item_type: itemType, download_url: url }, function(err, data) {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
     msgEl.style.color='#080'; msgEl.textContent=name + ' を追加しました！';
     document.getElementById('item-add-id').value='';
     document.getElementById('item-add-name').value='';
+    document.getElementById('item-add-url').value='';
     adminLoadItems();
   });
 }
+
+// グッズ種別切り替え時にURL欄表示切替
+document.addEventListener('DOMContentLoaded', function() {
+  var typeEl = document.getElementById('item-add-type');
+  if (typeEl) typeEl.addEventListener('change', function() {
+    var urlWrap = document.getElementById('item-add-url-wrap');
+    if (urlWrap) urlWrap.style.display = this.value === 'digital' ? 'flex' : 'none';
+  });
+});
 
 function adminToggleItem(itemId) {
   api({ action: 'adminToggleItem', item_id: itemId }, function(err, data) {
@@ -2155,6 +2363,59 @@ function adminSaveVideoId() {
   adminSaveEffects();
 }
 
+
+// ============================================================
+// 交換管理
+// ============================================================
+function adminLoadExchangeRates() {
+  var tbody = document.getElementById('admin-exr-body');
+  tbody.innerHTML = '<tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+  api({ action: 'getRecipes' }, function(err, data) {
+    if (err || !data.success) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:#c00;text-align:center;">取得失敗</td></tr>';
+      return;
+    }
+    if (!data.recipes || !data.recipes.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="color:#ccc;text-align:center;">レートなし</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.recipes.map(function(r) {
+      var cr = r.cost_rarity.toLowerCase();
+      var rr = r.reward_rarity.toLowerCase();
+      return '<tr>'
+        + '<td><span class="badge-' + cr + '">' + r.cost_rarity + '</span></td>'
+        + '<td style="text-align:center;">' + r.cost_count + '個</td>'
+        + '<td><span class="badge-' + rr + '">' + r.reward_rarity + '</span> 1個</td>'
+        + '<td><button data-id="' + r.recipe_id + '" onclick="adminDeleteRecipe(this.dataset.id)" style="font-size:11px;padding:3px 8px;border:1px solid #fcc;border-radius:8px;cursor:pointer;background:#fff;color:#c00;">削除</button></td>'
+        + '</tr>';
+    }).join('');
+  });
+}
+
+function adminAddExchangeRate() {
+  var costRarity  = document.getElementById('exr-cost-rarity').value;
+  var costCount   = parseInt(document.getElementById('exr-cost-count').value);
+  var rewardRarity = document.getElementById('exr-reward-rarity').value;
+  var msgEl = document.getElementById('admin-exr-add-msg');
+  if (!costCount || costCount < 1) { msgEl.style.color='#c00'; msgEl.textContent='消費数を正しく入力してください'; return; }
+  msgEl.style.color='#888'; msgEl.textContent='追加中...';
+  api({ action: 'adminAddRecipe', cost_rarity: costRarity, cost_count: costCount, reward_rarity: rewardRarity }, function(err, data) {
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent='追加しました！';
+    adminLoadExchangeRates();
+  });
+}
+
+function adminDeleteRecipe(recipeId) {
+  if (!confirm('この交換レートを削除しますか？')) return;
+  var msgEl = document.getElementById('admin-exr-msg');
+  msgEl.style.color='#888'; msgEl.textContent='削除中...';
+  api({ action: 'adminDeleteRecipe', recipe_id: recipeId }, function(err, data) {
+    if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='削除失敗: ' + (data ? data.message : err); return; }
+    msgEl.style.color='#080'; msgEl.textContent=data.message;
+    adminLoadExchangeRates();
+  });
+}
 function adminMsg(text, cls) {
   var el = document.getElementById('admin-msg');
   if (!el) return;
