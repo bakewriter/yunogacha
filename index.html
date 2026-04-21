@@ -748,7 +748,7 @@
       transition: width 0.3s ease;
     "></div>
   </div>
-  <div id="load-text" style="font-size:13px; color:#aaa;">読み込んでいます...</div>
+  <div id="load-text" style="font-size:13px; color:#ff80b0; font-weight:bold;">ガチャサイトのデータを取得中です！</div>
 </div>
 
 <!-- ===== ログイン画面 ===== -->
@@ -1584,19 +1584,27 @@ function onAssetsLoaded(cb) {
 }
 
 function loadAssets(cb) {
-  var imageKeys = ASSET_KEYS.filter(function(k){ return k !== 'gacha_video'; });
-  var total  = imageKeys.length;
-  var loaded = 0;
+  // Step1: 画像・音声アセット
+  // Step2: 演出設定（動画IDなど）
+  // Step3: 通常ガチャ動画
+  // Step4: FSフルスクリーン動画
+  // 全部ロード画面で完了させる
 
-  function onLoad() {
-    loaded++;
-    setLoadProgress(Math.round(loaded / total * 95) + 5, loaded + '/' + total + ' 読込完了');
-    if (loaded >= total) {
-      setLoadProgress(100, '完了！');
-      setTimeout(function(){ onAssetsLoaded(cb); }, 200);
+  var imageKeys = ASSET_KEYS.filter(function(k){ return k !== 'gacha_video'; });
+  var totalSteps = imageKeys.length + 3; // 画像 + 設定 + 通常動画 + FS動画
+  var doneSteps  = 0;
+
+  function stepDone(label) {
+    doneSteps++;
+    var pct = Math.round(doneSteps / totalSteps * 98) + 1;
+    setLoadProgress(pct, 'ガチャサイトのデータを取得中です！ (' + doneSteps + '/' + totalSteps + ')');
+    if (doneSteps >= totalSteps) {
+      setLoadProgress(100, '準備完了！');
+      setTimeout(function(){ onAssetsLoaded(cb); }, 300);
     }
   }
 
+  // 画像・音声を並列取得
   imageKeys.forEach(function(key) {
     var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify({ action: 'getAsset', key: key }));
     fetch(url, { redirect: 'follow' })
@@ -1605,18 +1613,51 @@ function loadAssets(cb) {
         if (data && data.success && data.dataUrl) {
           ASSETS[data.key] = data.dataUrl;
           if (data.key === 'frame') applyFrame();
-        } else {
-          console.warn('asset failed:', key, data ? data.message : 'null');
         }
-        onLoad();
+        stepDone(key);
       })
-      .catch(function(e) {
-        console.warn('asset fetch failed:', key, e);
-        onLoad();
-      });
+      .catch(function(e) { stepDone(key); });
   });
 
-  // 動画IDは設定シートから取得するためここでは読み込まない
+  // 演出設定を取得してから動画を順番に取得
+  api({ action: 'getEffectSettings' }, function(err, data) {
+    if (!err && data && data.success && data.settings) {
+      var s = data.settings;
+      if (s.gacha_video_id)       GACHA_VIDEO_FILE_ID  = s.gacha_video_id;
+      if (s.fs_video_id)          FS_VIDEO_FILE_ID     = s.fs_video_id;
+      if (s.fs_trigger_rarities)  FS_TRIGGER_RARITIES  = s.fs_trigger_rarities;
+      if (s.ssr_trigger_rarities) SSR_TRIGGER_RARITIES = s.ssr_trigger_rarities;
+      SSR_EFFECT_ENABLED = s.ssr_effect_enabled !== false;
+    }
+    stepDone('設定');
+
+    // 通常ガチャ動画を取得
+    if (GACHA_VIDEO_FILE_ID) {
+      api({ action: 'getAsset', key: 'gacha_video', file_id: GACHA_VIDEO_FILE_ID }, function(err2, d2) {
+        if (!err2 && d2 && d2.success && d2.dataUrl) {
+          GACHA_VIDEO_DATA_URL  = d2.dataUrl;
+          GACHA_VIDEO_CACHED_ID = GACHA_VIDEO_FILE_ID;
+        }
+        stepDone('通常動画');
+
+        // FS動画を取得
+        if (FS_VIDEO_FILE_ID) {
+          api({ action: 'getAsset', key: 'gacha_video', file_id: FS_VIDEO_FILE_ID }, function(err3, d3) {
+            if (!err3 && d3 && d3.success && d3.dataUrl) {
+              FS_VIDEO_DATA_URL  = d3.dataUrl;
+              FS_VIDEO_CACHED_ID = FS_VIDEO_FILE_ID;
+            }
+            stepDone('FS動画');
+          });
+        } else {
+          stepDone('FS動画');
+        }
+      });
+    } else {
+      stepDone('通常動画');
+      stepDone('FS動画');
+    }
+  });
 }
 
 function loadVideoFileId(cb) {
@@ -1772,12 +1813,7 @@ function gotoGacha() {
   applyGachaAssets();
   loadItems();
   loadURUsers();
-  // 設定読み込み後にFS動画を裏で事前キャッシュ
-  loadVideoFileId(function() {
-    if (FS_VIDEO_FILE_ID) {
-      fetchFSVideo(function() {}); // 戻り値不要・キャッシュだけしておく
-    }
-  });
+  // 動画・設定はロード画面で取得済み
 }
 
 function doLogout() {
