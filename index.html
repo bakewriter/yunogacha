@@ -1212,22 +1212,10 @@
     <h2>アイテム引き換え</h2>
     <div id="redeem-list"></div>
     <div id="redeem-form-wrap" style="display:none;margin-top:16px;">
-      <div id="redeem-physical-form" style="display:none;">
-        <h3 style="font-size:14px;margin:0 0 10px;color:#555;">お届け先入力</h3>
-        <div style="display:flex;flex-direction:column;gap:8px;max-width:400px;">
-          <input type="text" id="redeem-name" placeholder="お名前" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
-          <input type="text" id="redeem-zip" placeholder="郵便番号（例：123-4567）" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
-          <input type="text" id="redeem-address" placeholder="住所" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
-          <input type="text" id="redeem-phone" placeholder="電話番号" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
-          <button onclick="submitRedeem()" style="background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border:none;padding:10px;border-radius:20px;font-size:14px;font-weight:bold;cursor:pointer;">引き換え申請する</button>
-        </div>
-      </div>
-      <div id="redeem-digital-form" style="display:none;">
-        <h3 style="font-size:14px;margin:0 0 10px;color:#555;">ダウンロードURLをメールで受け取る</h3>
-        <div style="display:flex;flex-direction:column;gap:8px;max-width:400px;">
-          <input type="email" id="redeem-email" placeholder="メールアドレス" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
-          <button onclick="submitRedeem()" style="background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border:none;padding:10px;border-radius:20px;font-size:14px;font-weight:bold;cursor:pointer;">URLをメールで受け取る</button>
-        </div>
+      <h3 style="font-size:14px;margin:0 0 10px;color:#555;">メールアドレスを確認してください</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:400px;">
+        <input type="email" id="redeem-email" placeholder="メールアドレス" style="padding:8px 12px;border:1px solid #ddd;border-radius:12px;font-size:13px;">
+        <button onclick="submitRedeem()" style="background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border:none;padding:10px;border-radius:20px;font-size:14px;font-weight:bold;cursor:pointer;">引き換え申請する</button>
       </div>
     </div>
     <div id="msg-redeem" class="msg"></div>
@@ -1951,51 +1939,28 @@ function loadRedeemItems() {
 
 function openRedeemForm(itemId, itemType) {
   currentRedeemItem = { item_id: itemId, item_type: itemType };
-  var wrap = document.getElementById('redeem-form-wrap');
-  var phys = document.getElementById('redeem-physical-form');
-  var digi = document.getElementById('redeem-digital-form');
-  var msg  = document.getElementById('msg-redeem');
+  var wrap  = document.getElementById('redeem-form-wrap');
+  var msg   = document.getElementById('msg-redeem');
+  var emailEl = document.getElementById('redeem-email');
   wrap.style.display = 'block';
   msg.textContent = '';
-  if (itemType === 'physical') {
-    phys.style.display = 'block';
-    digi.style.display = 'none';
-  } else {
-    phys.style.display = 'none';
-    digi.style.display = 'block';
-    // ログイン中のメールをデフォルト入力
-    var emailEl = document.getElementById('redeem-email');
-    if (emailEl && currentUser.email) emailEl.value = currentUser.email;
-  }
+  if (emailEl && currentUser.email) emailEl.value = currentUser.email;
   wrap.scrollIntoView({behavior:'smooth'});
 }
 
 function submitRedeem() {
   if (!currentRedeemItem) return;
   var msgEl = document.getElementById('msg-redeem');
-  var payload = {
-    action: 'redeemItem',
-    user_id: currentUser.user_id,
-    item_id: currentRedeemItem.item_id,
-    item_type: currentRedeemItem.item_type
-  };
-  if (currentRedeemItem.item_type === 'physical') {
-    var name    = document.getElementById('redeem-name').value.trim();
-    var zip     = document.getElementById('redeem-zip').value.trim();
-    var address = document.getElementById('redeem-address').value.trim();
-    var phone   = document.getElementById('redeem-phone').value.trim();
-    if (!name || !zip || !address) { msgEl.style.color='#c00'; msgEl.textContent='お名前・郵便番号・住所は必須です'; return; }
-    payload.delivery_name    = name;
-    payload.delivery_zip     = zip;
-    payload.delivery_address = address;
-    payload.delivery_phone   = phone;
-  } else {
-    var email = document.getElementById('redeem-email').value.trim();
-    if (!email) { msgEl.style.color='#c00'; msgEl.textContent='メールアドレスを入力してください'; return; }
-    payload.email = email;
-  }
+  var email = document.getElementById('redeem-email').value.trim();
+  if (!email) { msgEl.style.color='#c00'; msgEl.textContent='メールアドレスを入力してください'; return; }
   msgEl.style.color='#888'; msgEl.textContent='申請中...';
-  api(payload, function(err, data) {
+  api({
+    action:    'redeemItem',
+    user_id:   currentUser.user_id,
+    item_id:   currentRedeemItem.item_id,
+    item_type: currentRedeemItem.item_type,
+    email:     email
+  }, function(err, data) {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
     msgEl.style.color='#080'; msgEl.textContent=data.message;
     document.getElementById('redeem-form-wrap').style.display = 'none';
