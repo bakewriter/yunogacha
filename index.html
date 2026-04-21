@@ -1701,14 +1701,6 @@ function playFullscreenVideo(dataUrl, onEnded) {
 
   overlay.style.display = 'block';
   video.src = blobUrl;
-  video.load();
-  video.oncanplay = function() {
-    video.oncanplay = null;
-    video.play().catch(function(e) {
-      console.warn('FS video play failed:', e);
-      finish();
-    });
-  };
   video.onended  = function() { finish(); };
   video.onerror  = function(e) { console.warn('FS video error:', e); finish(); };
   var timeout = setTimeout(function() { finish(); }, 120000);
@@ -1716,6 +1708,11 @@ function playFullscreenVideo(dataUrl, onEnded) {
     clearTimeout(timeout);
     timeout = setTimeout(finish, (video.duration + 5) * 1000);
   };
+  video.load();
+  video.play().catch(function(e) {
+    console.warn('FS video play failed:', e);
+    finish();
+  });
 }
 function fetchGachaVideo(onReady) {
   // IDが変わっていたらキャッシュ破棄して再取得
