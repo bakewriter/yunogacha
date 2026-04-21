@@ -1351,21 +1351,18 @@ function doRoll(count) {
       return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
     });
 
-    console.log('hasFSTrigger=', hasFSTrigger, 'FS_VIDEO_FILE_ID=', FS_VIDEO_FILE_ID);
     if (hasFSTrigger) {
-      // FSトリガーあり → 通常演出動画 → UR演出動画 → 結果表示
+      // FSトリガーあり → 通常演出動画終了後すぐFS動画（キャッシュ済み）を再生
       fetchAndPlayVideo(function() {
-        console.log('fetchAndPlayVideo callback called, now calling fetchFSVideo');
-        fetchFSVideo(function(dataUrl) {
-          console.log('fetchFSVideo callback called, dataUrl=', dataUrl ? dataUrl.length : 'null');
-          if (dataUrl) {
-            playFullscreenVideo(dataUrl, function() {
-              showGachaResults(data.results); onAllDone();
-            });
-          } else {
+        // キャッシュ済みなので即座に取得できる
+        if (FS_VIDEO_DATA_URL) {
+          playFullscreenVideo(FS_VIDEO_DATA_URL, function() {
             showGachaResults(data.results); onAllDone();
-          }
-        });
+          });
+        } else {
+          // キャッシュがない場合はそのまま結果表示
+          showGachaResults(data.results); onAllDone();
+        }
       });
     } else {
       // FSトリガーなし → 通常演出動画 → 結果表示
@@ -1767,7 +1764,12 @@ function gotoGacha() {
   applyGachaAssets();
   loadItems();
   loadURUsers();
-  loadVideoFileId(); // 設定シートから動画IDを取得
+  // 設定読み込み後にFS動画を裏で事前キャッシュ
+  loadVideoFileId(function() {
+    if (FS_VIDEO_FILE_ID) {
+      fetchFSVideo(function() {}); // 戻り値不要・キャッシュだけしておく
+    }
+  });
 }
 
 function doLogout() {
