@@ -1042,12 +1042,18 @@
         </label>
         <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
           交換先レアリティ
-          <select id="exr-reward-rarity" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
+          <select id="exr-reward-rarity" onchange="adminUpdateRewardItems()" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
             <option value="C">C</option>
             <option value="R">R</option>
             <option value="SR">SR</option>
             <option value="SSR">SSR</option>
             <option value="UR">UR</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;" id="exr-reward-item-wrap">
+          交換先アイテム（省略可）
+          <select id="exr-reward-item" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;min-width:150px;">
+            <option value="">レアリティ内ランダム</option>
           </select>
         </label>
         <button onclick="adminAddExchangeRate()" style="height:34px;align-self:flex-end;background:#ff80b0;color:#fff;border:none;padding:6px 16px;border-radius:16px;font-size:13px;cursor:pointer;">追加する</button>
@@ -1060,7 +1066,7 @@
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead><tr>
-            <th>消費レアリティ</th><th>消費数</th><th>交換先レアリティ</th><th>操作</th>
+            <th>消費レアリティ</th><th>消費数</th><th>交換先</th><th>操作</th>
           </tr></thead>
           <tbody id="admin-exr-body"><tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
@@ -2503,9 +2509,21 @@ function adminSaveVideoId() {
 // ============================================================
 // 交換管理
 // ============================================================
+// 交換管理パネルのアイテムリストキャッシュ
+var adminItemsCache = [];
+
 function adminLoadExchangeRates() {
   var tbody = document.getElementById('admin-exr-body');
   tbody.innerHTML = '<tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
+
+  // アイテム一覧も取得してプルダウンを更新
+  api({ action: 'getItems' }, function(err, itemData) {
+    if (!err && itemData && itemData.success) {
+      adminItemsCache = itemData.items || [];
+      adminUpdateRewardItems();
+    }
+  });
+
   api({ action: 'getRecipes' }, function(err, data) {
     if (err || !data.success) {
       tbody.innerHTML = '<tr><td colspan="4" style="color:#c00;text-align:center;">取得失敗</td></tr>';
@@ -2518,24 +2536,43 @@ function adminLoadExchangeRates() {
     tbody.innerHTML = data.recipes.map(function(r) {
       var cr = r.cost_rarity.toLowerCase();
       var rr = r.reward_rarity.toLowerCase();
+      var rewardLabel = r.reward_item_name
+        ? '<span class="badge-' + rr + '">' + r.reward_rarity + '</span> ' + r.reward_item_name
+        : '<span class="badge-' + rr + '">' + r.reward_rarity + '</span> ランダム';
       return '<tr>'
-        + '<td><span class="badge-' + cr + '">' + r.cost_rarity + '</span></td>'
-        + '<td style="text-align:center;">' + r.cost_count + '個</td>'
-        + '<td><span class="badge-' + rr + '">' + r.reward_rarity + '</span> 1個</td>'
-        + '<td><button data-id="' + r.recipe_id + '" onclick="adminDeleteRecipe(this.dataset.id)" style="font-size:11px;padding:3px 8px;border:1px solid #fcc;border-radius:8px;cursor:pointer;background:#fff;color:#c00;">削除</button></td>'
+        + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;"><span class="badge-' + cr + '">' + r.cost_rarity + '</span></td>'
+        + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;text-align:center;">' + r.cost_count + '個</td>'
+        + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;">' + rewardLabel + '</td>'
+        + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;"><button data-id="' + r.recipe_id + '" onclick="adminDeleteRecipe(this.dataset.id)" style="font-size:11px;padding:3px 8px;border:1px solid #fcc;border-radius:8px;cursor:pointer;background:#fff;color:#c00;">削除</button></td>'
         + '</tr>';
     }).join('');
   });
 }
 
+function adminUpdateRewardItems() {
+  var rarity = document.getElementById('exr-reward-rarity') ? document.getElementById('exr-reward-rarity').value : '';
+  var select = document.getElementById('exr-reward-item');
+  if (!select) return;
+  select.innerHTML = '<option value="">レアリティ内ランダム</option>';
+  adminItemsCache.filter(function(item) {
+    return item.rarity === rarity;
+  }).forEach(function(item) {
+    var opt = document.createElement('option');
+    opt.value = item.item_id;
+    opt.textContent = item.item_name + ' (' + item.item_id + ')';
+    select.appendChild(opt);
+  });
+}
+
 function adminAddExchangeRate() {
-  var costRarity  = document.getElementById('exr-cost-rarity').value;
-  var costCount   = parseInt(document.getElementById('exr-cost-count').value);
+  var costRarity   = document.getElementById('exr-cost-rarity').value;
+  var costCount    = parseInt(document.getElementById('exr-cost-count').value);
   var rewardRarity = document.getElementById('exr-reward-rarity').value;
+  var rewardItemId = document.getElementById('exr-reward-item').value || null;
   var msgEl = document.getElementById('admin-exr-add-msg');
   if (!costCount || costCount < 1) { msgEl.style.color='#c00'; msgEl.textContent='消費数を正しく入力してください'; return; }
   msgEl.style.color='#888'; msgEl.textContent='追加中...';
-  api({ action: 'adminAddRecipe', cost_rarity: costRarity, cost_count: costCount, reward_rarity: rewardRarity }, function(err, data) {
+  api({ action: 'adminAddRecipe', cost_rarity: costRarity, cost_count: costCount, reward_rarity: rewardRarity, reward_item_id: rewardItemId }, function(err, data) {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
     msgEl.style.color='#080'; msgEl.textContent='追加しました！';
     adminLoadExchangeRates();
