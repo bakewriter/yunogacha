@@ -1351,9 +1351,11 @@ function doRoll(count) {
       return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
     });
 
+    console.log('hasFSTrigger=', hasFSTrigger, 'FS_VIDEO_DATA_URL len=', FS_VIDEO_DATA_URL.length, 'results=', data.results.map(function(r){return r.rarity;}));
     if (hasFSTrigger) {
       // FSトリガーあり → 通常演出動画終了後すぐFS動画（キャッシュ済み）を再生
       fetchAndPlayVideo(function() {
+        console.log('fetchAndPlayVideo done, FS_VIDEO_DATA_URL len=', FS_VIDEO_DATA_URL.length);
         // キャッシュ済みなので即座に取得できる
         if (FS_VIDEO_DATA_URL) {
           playFullscreenVideo(FS_VIDEO_DATA_URL, function() {
@@ -1600,6 +1602,8 @@ function loadAssets(cb) {
     setLoadProgress(pct, 'ガチャサイトのデータを取得中です！ (' + doneSteps + '/' + totalSteps + ')');
     if (doneSteps >= totalSteps) {
       setLoadProgress(100, '準備完了！');
+      console.log('ロード完了 GACHA_VIDEO_FILE_ID=', GACHA_VIDEO_FILE_ID, 'GACHA cached=', GACHA_VIDEO_CACHED_ID, 'len=', GACHA_VIDEO_DATA_URL.length);
+      console.log('ロード完了 FS_VIDEO_FILE_ID=', FS_VIDEO_FILE_ID, 'FS cached=', FS_VIDEO_CACHED_ID, 'len=', FS_VIDEO_DATA_URL.length);
       setTimeout(function(){ onAssetsLoaded(cb); }, 300);
     }
   }
