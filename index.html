@@ -1321,44 +1321,63 @@ function doRoll(count) {
   });
   msg('msg-gacha','抽選中...','');
 
-  api({action:'rollGacha', user_id:currentUser.user_id, count:count}, function(err,data){
-    if (err) {
+  // ボタンを押した瞬間に演出動画を開始しながらAPIを並行して呼ぶ
+  var apiResult   = null;  // APIレスポンスを格納
+  var videoEnded  = false; // 動画が終わったか
+  var apiDone     = false; // APIが返ってきたか
+
+  function tryShowResults() {
+    // 動画終了 かつ APIレスポンス済み の両方が揃ったら結果表示
+    if (!videoEnded || !apiDone) return;
+    if (!apiResult || !apiResult.success) {
       ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=false; });
-      msg('msg-gacha',err,'err'); return;
+      msg('msg-gacha', apiResult ? apiResult.message : 'エラーが発生しました', 'err');
+      return;
     }
-    if (data.success) {
-      currentUser.tickets = data.remaining_tickets;
-      sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
-      document.getElementById('ticket-count').textContent = data.remaining_tickets;
+    var data = apiResult;
+    currentUser.tickets = data.remaining_tickets;
+    sessionStorage.setItem('gachaUser', JSON.stringify(currentUser));
+    document.getElementById('ticket-count').textContent = data.remaining_tickets;
+    updateGachaBtns();
+    msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
+
+    var hasFSTrigger = data.results.some(function(item) {
+      return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
+    });
+
+    function onAllDone() {
+      ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=false; });
       updateGachaBtns();
-      msg('msg-gacha','残り ' + data.remaining_tickets + ' 枚','ok');
-
-      function onAllDone() {
-        // 演出がすべて終わってからボタンを再有効化
-        ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=false; });
-        updateGachaBtns();
-      }
-
-      var hasFSTrigger = data.results.some(function(item) {
-        return FS_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
-      });
-      if (hasFSTrigger && FS_VIDEO_FILE_ID) {
-        fetchFSVideo(function(dataUrl) {
-          if (dataUrl) {
-            playFullscreenVideo(dataUrl, function() {
-              fetchAndPlayVideo(function() { showGachaResults(data.results); onAllDone(); });
-            });
-          } else {
-            fetchAndPlayVideo(function() { showGachaResults(data.results); onAllDone(); });
-          }
-        });
-      } else {
-        fetchAndPlayVideo(function() { showGachaResults(data.results); onAllDone(); });
-      }
-    } else {
-      ['gbtn-1','gbtn-5','gbtn-10'].forEach(function(id){ var e=document.getElementById(id); if(e) e.disabled=false; });
-      msg('msg-gacha', data.message,'err');
     }
+
+    if (hasFSTrigger && FS_VIDEO_FILE_ID) {
+      fetchFSVideo(function(dataUrl) {
+        if (dataUrl) {
+          playFullscreenVideo(dataUrl, function() { showGachaResults(data.results); onAllDone(); });
+        } else {
+          showGachaResults(data.results); onAllDone();
+        }
+      });
+    } else {
+      showGachaResults(data.results); onAllDone();
+    }
+  }
+
+  // 演出動画を即座に開始
+  fetchAndPlayVideo(function() {
+    videoEnded = true;
+    tryShowResults();
+  });
+
+  // APIを並行して呼ぶ
+  api({action:'rollGacha', user_id:currentUser.user_id, count:count}, function(err, data){
+    if (err) {
+      apiResult = { success: false, message: err };
+    } else {
+      apiResult = data;
+    }
+    apiDone = true;
+    tryShowResults();
   });
 }
 
