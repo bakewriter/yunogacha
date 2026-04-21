@@ -1442,21 +1442,8 @@ function playGachaVideo(videoUrl, onEnded) {
   disp.style.display = 'none';
   disp.innerHTML = '';
 
-  // base64をBlobURLに変換（大容量動画対応）
-  var blobUrl = null;
-  try {
-    var base64 = videoUrl.split(',')[1];
-    var mime   = videoUrl.split(';')[0].split(':')[1];
-    var binary = atob(base64);
-    var bytes  = new Uint8Array(binary.length);
-    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
-    blobUrl = URL.createObjectURL(new Blob([bytes], { type: mime }));
-  } catch(e) {
-    console.warn('gacha video blob error:', e);
-    finish(); return;
-  }
-
-  video.src = blobUrl;
+  // ロード時にBlobURL変換済みなのでそのまま使用
+  video.src = videoUrl;
   video.style.display = 'block';
   video.load();
 
@@ -1467,7 +1454,7 @@ function playGachaVideo(videoUrl, onEnded) {
       finish();
     });
   };
-  video.onended = function() { if (blobUrl) { URL.revokeObjectURL(blobUrl); } finish(); };
+  video.onended = function() { finish(); };
   video.onerror = function(e) { console.warn('video error:', e); finish(); };
   var timeout = setTimeout(finish, 60000);
   video.onloadedmetadata = function() {
@@ -1535,6 +1522,21 @@ var FS_TRIGGER_RARITIES   = ['UR'];    // フルスクリーン発動レアリ�
 var SSR_TRIGGER_RARITIES  = ['SSR','UR']; // SSRランプ発動レアリティ
 var SSR_EFFECT_ENABLED    = true;         // SSRランプ演出ON/OFF
 
+
+// base64データURLをBlobURLに変換するヘルパー
+function dataUrlToBlobUrl(dataUrl) {
+  try {
+    var base64 = dataUrl.split(',')[1];
+    var mime   = dataUrl.split(';')[0].split(':')[1];
+    var binary = atob(base64);
+    var bytes  = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
+    return URL.createObjectURL(new Blob([bytes], { type: mime }));
+  } catch(e) {
+    console.warn('dataUrlToBlobUrl error:', e);
+    return null;
+  }
+}
 function api(payload, cb) {
   var url = GAS + '?payload=' + encodeURIComponent(JSON.stringify(payload));
   fetch(url, { redirect: 'follow' })
@@ -1639,8 +1641,9 @@ function loadAssets(cb) {
     if (GACHA_VIDEO_FILE_ID) {
       api({ action: 'getAsset', key: 'gacha_video', file_id: GACHA_VIDEO_FILE_ID }, function(err2, d2) {
         if (!err2 && d2 && d2.success && d2.dataUrl) {
-          GACHA_VIDEO_DATA_URL  = d2.dataUrl;
+          GACHA_VIDEO_DATA_URL  = dataUrlToBlobUrl(d2.dataUrl) || d2.dataUrl;
           GACHA_VIDEO_CACHED_ID = GACHA_VIDEO_FILE_ID;
+          console.log('通常動画BlobURL作成完了');
         }
         stepDone('通常動画');
 
@@ -1648,8 +1651,9 @@ function loadAssets(cb) {
         if (FS_VIDEO_FILE_ID) {
           api({ action: 'getAsset', key: 'gacha_video', file_id: FS_VIDEO_FILE_ID }, function(err3, d3) {
             if (!err3 && d3 && d3.success && d3.dataUrl) {
-              FS_VIDEO_DATA_URL  = d3.dataUrl;
+              FS_VIDEO_DATA_URL  = dataUrlToBlobUrl(d3.dataUrl) || d3.dataUrl;
               FS_VIDEO_CACHED_ID = FS_VIDEO_FILE_ID;
+              console.log('FS動画BlobURL作成完了');
             }
             stepDone('FS動画');
           });
@@ -1724,23 +1728,8 @@ function playFullscreenVideo(dataUrl, onEnded) {
     if (onEnded) onEnded();
   }
 
-  // base64をBlobに変換してBlobURLを生成（大容量動画対応）
-  try {
-    console.log('FS: converting base64 to Blob...');
-    var base64 = dataUrl.split(',')[1];
-    var mime   = dataUrl.split(';')[0].split(':')[1];
-    console.log('FS: mime=', mime, 'base64 len=', base64 ? base64.length : 'null');
-    var binary = atob(base64);
-    var bytes  = new Uint8Array(binary.length);
-    for (var i = 0; i < binary.length; i++) { bytes[i] = binary.charCodeAt(i); }
-    var blob = new Blob([bytes], { type: mime });
-    blobUrl = URL.createObjectURL(blob);
-    console.log('FS: blobUrl=', blobUrl);
-  } catch(e) {
-    console.warn('FS video blob error:', e);
-    if (onEnded) onEnded(); return;
-  }
-
+  // ロード時にBlobURL変換済みなのでそのまま使用
+  var blobUrl = dataUrl;
   overlay.style.display = 'block';
   video.onended  = function() { console.log('FS onended'); finish(); };
   video.onerror  = function(e) { console.warn('FS onerror:', e); finish(); };
@@ -1923,23 +1912,58 @@ function loadItems() {
 
   function tryRender() {
     if (recipes === null || inventory === null) return;
+
+    // レアリティ別所持数とアイテム一覧を集計
     var rarityCount = {};
+    var rarityItems = {}; // レアリティ→アイテム一覧
     inventory.forEach(function(item) {
       rarityCount[item.rarity] = (rarityCount[item.rarity] || 0) + item.count;
+      if (!rarityItems[item.rarity]) rarityItems[item.rarity] = [];
+      rarityItems[item.rarity].push(item);
     });
-    var html = '<table><thead><tr><th>交換内容</th><th>所持</th><th>必要</th><th></th></tr></thead><tbody>';
+
+    var tdStyle = 'style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;"';
+    var thStyle = 'style="background:#fef0f6;padding:7px 10px;border:1px solid #f0d0e0;"';
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+      + '<thead><tr>'
+      + '<th ' + thStyle + '>交換内容</th>'
+      + '<th ' + thStyle + '>所持</th>'
+      + '<th ' + thStyle + '>必要</th>'
+      + '<th ' + thStyle + '></th>'
+      + '</tr></thead><tbody>';
+
     recipes.forEach(function(r) {
-      var have = rarityCount[r.cost_rarity] || 0;
-      var ok = have >= r.cost_count;
+      var have  = rarityCount[r.cost_rarity] || 0;
+      var ok    = have >= r.cost_count;
       var btnAttr = ok ? '' : ' disabled';
+      var cr = r.cost_rarity.toLowerCase();
+      var rr = r.reward_rarity.toLowerCase();
+
+      // 同レアリティ交換の場合は交換先アイテムをプルダウンで選択
+      var isSameRarity = (r.cost_rarity === r.reward_rarity);
+      var rewardItems  = rarityItems[r.reward_rarity] || [];
+
+      var selectHtml = '';
+      if (isSameRarity && rewardItems.length > 1) {
+        selectHtml = '<select class="exchange-item-select" data-recipe-id="' + r.recipe_id + '" style="padding:3px 6px;border:1px solid #ddd;border-radius:8px;font-size:12px;margin-right:4px;">';
+        rewardItems.forEach(function(item) {
+          selectHtml += '<option value="' + item.item_id + '">' + item.item_name + '</option>';
+        });
+        selectHtml += '</select>';
+      }
+
       html += '<tr>'
-        + '<td>' + r.description + '</td>'
-        + '<td>' + have + '個</td>'
-        + '<td>' + r.cost_count + '個</td>'
-        + '<td><button class="exchange-btn"' + btnAttr
+        + '<td ' + tdStyle + '><span class="badge-' + cr + '">' + r.cost_rarity + '</span> × ' + r.cost_count + '個 → <span class="badge-' + rr + '">' + r.reward_rarity + '</span> 1個</td>'
+        + '<td ' + tdStyle + ' style="text-align:center;background:#fff;">' + have + '個</td>'
+        + '<td ' + tdStyle + ' style="text-align:center;background:#fff;">' + r.cost_count + '個</td>'
+        + '<td ' + tdStyle + ' style="background:#fff;">'
+        + selectHtml
+        + '<button class="exchange-btn"' + btnAttr
         + ' data-recipe-id="' + r.recipe_id + '"'
         + ' data-description="' + r.description + '"'
-        + ' onclick="handleExchange(this)">交換</button></td>'
+        + ' data-same-rarity="' + isSameRarity + '"'
+        + ' onclick="handleExchange(this)">交換</button>'
+        + '</td>'
         + '</tr>';
     });
     el.innerHTML = html + '</tbody></table>';
@@ -1956,15 +1980,25 @@ function loadItems() {
 }
 
 function handleExchange(btn) {
-  var recipeId   = btn.getAttribute('data-recipe-id');
+  var recipeId    = btn.getAttribute('data-recipe-id');
   var description = btn.getAttribute('data-description');
-  doExchangeByItem(recipeId, description);
+  var isSame      = btn.getAttribute('data-same-rarity') === 'true';
+  var rewardItemId = null;
+  if (isSame) {
+    // 同レアリティの場合は隣のselectから選択中アイテムIDを取得
+    var row    = btn.closest('tr');
+    var select = row ? row.querySelector('.exchange-item-select') : null;
+    if (select) rewardItemId = select.value;
+  }
+  doExchangeByItem(recipeId, description, rewardItemId);
 }
 
-function doExchangeByItem(recipeId, description) {
+function doExchangeByItem(recipeId, description, rewardItemId) {
   if (!confirm(description + '\nこの交換を実行しますか？')) return;
   msg('msg-exchange', '交換中...', '');
-  api({ action: 'exchangeByItem', user_id: currentUser.user_id, recipe_id: recipeId }, function(err, data) {
+  var payload = { action: 'exchangeByItem', user_id: currentUser.user_id, recipe_id: recipeId };
+  if (rewardItemId) payload.reward_item_id = rewardItemId;
+  api(payload, function(err, data) {
     if (err) { msg('msg-exchange', err, 'err'); return; }
     if (data.success) {
       msg('msg-exchange', data.message, 'ok');
