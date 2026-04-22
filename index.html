@@ -779,7 +779,7 @@
       <div class="card-title">初回登録</div>
       <label>メールアドレス<input type="email" id="reg-email" placeholder="example@email.com"></label>
       <label>ユーザー名<input type="text" id="reg-name" placeholder="お好きな名前"></label>
-      <label>シリアルコード（BOOTHの注文番号）<input type="text" id="reg-serial" placeholder="BOOTH-XXXX-XXXX"></label>
+      <label>シリアルコード（BOOTHの注文番号）<input type="text" id="reg-serial" placeholder="注文番号"></label>
     </div>
   </div>
   </div><!-- /card-stage-wrap -->
@@ -1028,12 +1028,18 @@
       <div class="admin-serial-form" style="align-items:flex-end;gap:10px;flex-wrap:wrap;">
         <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
           消費レアリティ
-          <select id="exr-cost-rarity" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
+          <select id="exr-cost-rarity" onchange="adminUpdateCostItems()" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;">
             <option value="C">C</option>
             <option value="R">R</option>
             <option value="SR">SR</option>
             <option value="SSR">SSR</option>
             <option value="UR">UR</option>
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          消費アイテム（省略可）
+          <select id="exr-cost-item" style="padding:6px 10px;border:1px solid #ddd;border-radius:16px;font-size:13px;min-width:150px;">
+            <option value="">レアリティ全体から消費</option>
           </select>
         </label>
         <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
@@ -1066,7 +1072,7 @@
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead><tr>
-            <th>消費レアリティ</th><th>消費数</th><th>交換先</th><th>操作</th>
+            <th>消費元</th><th>消費数</th><th>交換先</th><th>操作</th>
           </tr></thead>
           <tbody id="admin-exr-body"><tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr></tbody>
         </table>
@@ -1936,10 +1942,12 @@ function loadItems() {
     // レアリティ別所持数とアイテム一覧を集計
     var rarityCount = {};
     var rarityItems = {}; // レアリティ→アイテム一覧
+    var itemMasterMap = {}; // アイテムIDからアイテム情報へのマップ
     inventory.forEach(function(item) {
       rarityCount[item.rarity] = (rarityCount[item.rarity] || 0) + item.count;
       if (!rarityItems[item.rarity]) rarityItems[item.rarity] = [];
       rarityItems[item.rarity].push(item);
+      itemMasterMap[item.item_id] = item;
     });
 
     var tdStyle = 'style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;"';
@@ -1958,6 +1966,13 @@ function loadItems() {
       var btnAttr = ok ? '' : ' disabled';
       var cr = r.cost_rarity.toLowerCase();
       var rr = r.reward_rarity.toLowerCase();
+
+      // 消費元アイテム名を取得
+      var costItemName = '';
+      if (r.cost_item_id) {
+        var costMaster = itemMasterMap[r.cost_item_id];
+        costItemName = costMaster ? costMaster.item_name : r.cost_item_id;
+      }
 
       // 同レアリティ交換の場合は交換先アイテムをプルダウンで選択
       var isSameRarity = (r.cost_rarity === r.reward_rarity);
@@ -2567,10 +2582,10 @@ function adminLoadExchangeRates() {
   var tbody = document.getElementById('admin-exr-body');
   tbody.innerHTML = '<tr><td colspan="4" style="color:#ccc;text-align:center;">読み込み中...</td></tr>';
 
-  // アイテム一覧も取得してプルダウンを更新
   api({ action: 'getItems' }, function(err, itemData) {
     if (!err && itemData && itemData.success) {
       adminItemsCache = itemData.items || [];
+      adminUpdateCostItems();
       adminUpdateRewardItems();
     }
   });
@@ -2587,16 +2602,34 @@ function adminLoadExchangeRates() {
     tbody.innerHTML = data.recipes.map(function(r) {
       var cr = r.cost_rarity.toLowerCase();
       var rr = r.reward_rarity.toLowerCase();
+      var costLabel = r.cost_item_name
+        ? '<span class="badge-' + cr + '">' + r.cost_rarity + '</span> ' + r.cost_item_name
+        : '<span class="badge-' + cr + '">' + r.cost_rarity + '</span> 全体';
       var rewardLabel = r.reward_item_name
         ? '<span class="badge-' + rr + '">' + r.reward_rarity + '</span> ' + r.reward_item_name
         : '<span class="badge-' + rr + '">' + r.reward_rarity + '</span> ランダム';
       return '<tr>'
-        + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;"><span class="badge-' + cr + '">' + r.cost_rarity + '</span></td>'
+        + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;">' + costLabel + '</td>'
         + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;text-align:center;">' + r.cost_count + '個</td>'
         + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;">' + rewardLabel + '</td>'
         + '<td style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;"><button data-id="' + r.recipe_id + '" onclick="adminDeleteRecipe(this.dataset.id)" style="font-size:11px;padding:3px 8px;border:1px solid #fcc;border-radius:8px;cursor:pointer;background:#fff;color:#c00;">削除</button></td>'
         + '</tr>';
     }).join('');
+  });
+}
+
+function adminUpdateCostItems() {
+  var rarity = document.getElementById('exr-cost-rarity') ? document.getElementById('exr-cost-rarity').value : '';
+  var select = document.getElementById('exr-cost-item');
+  if (!select) return;
+  select.innerHTML = '<option value="">レアリティ全体から消費</option>';
+  adminItemsCache.filter(function(item) {
+    return item.rarity === rarity;
+  }).forEach(function(item) {
+    var opt = document.createElement('option');
+    opt.value = item.item_id;
+    opt.textContent = item.item_name + ' (' + item.item_id + ')';
+    select.appendChild(opt);
   });
 }
 
@@ -2617,13 +2650,14 @@ function adminUpdateRewardItems() {
 
 function adminAddExchangeRate() {
   var costRarity   = document.getElementById('exr-cost-rarity').value;
+  var costItemId   = document.getElementById('exr-cost-item').value || null;
   var costCount    = parseInt(document.getElementById('exr-cost-count').value);
   var rewardRarity = document.getElementById('exr-reward-rarity').value;
   var rewardItemId = document.getElementById('exr-reward-item').value || null;
   var msgEl = document.getElementById('admin-exr-add-msg');
   if (!costCount || costCount < 1) { msgEl.style.color='#c00'; msgEl.textContent='消費数を正しく入力してください'; return; }
   msgEl.style.color='#888'; msgEl.textContent='追加中...';
-  api({ action: 'adminAddRecipe', cost_rarity: costRarity, cost_count: costCount, reward_rarity: rewardRarity, reward_item_id: rewardItemId }, function(err, data) {
+  api({ action: 'adminAddRecipe', cost_rarity: costRarity, cost_item_id: costItemId, cost_count: costCount, reward_rarity: rewardRarity, reward_item_id: rewardItemId }, function(err, data) {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
     msgEl.style.color='#080'; msgEl.textContent='追加しました！';
     adminLoadExchangeRates();
