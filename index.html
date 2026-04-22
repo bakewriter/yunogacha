@@ -1978,25 +1978,51 @@ function loadItems() {
       var isSameRarity = (r.cost_rarity === r.reward_rarity);
       var rewardItems  = rarityItems[r.reward_rarity] || [];
 
-      var selectHtml = '';
-      if (isSameRarity && rewardItems.length > 1) {
-        selectHtml = '<select class="exchange-item-select" data-recipe-id="' + r.recipe_id + '" style="padding:3px 6px;border:1px solid #ddd;border-radius:8px;font-size:12px;margin-right:4px;">';
-        rewardItems.forEach(function(item) {
-          selectHtml += '<option value="' + item.item_id + '">' + item.item_name + '</option>';
+      // 消費元アイテム選択（cost_item_idが未指定で同レアの場合）
+      var costSelectHtml = '';
+      var costItems = rarityItems[r.cost_rarity] || [];
+      if (!r.cost_item_id && costItems.length > 1) {
+        costSelectHtml = '消費: <select class="exchange-cost-select" style="padding:3px 6px;border:1px solid #ddd;border-radius:8px;font-size:12px;margin-right:4px;">';
+        costItems.forEach(function(item) {
+          costSelectHtml += '<option value="' + item.item_id + '">' + item.item_name + '</option>';
         });
-        selectHtml += '</select>';
+        costSelectHtml += '</select><br>';
+      }
+
+      // 交換先アイテム選択（同レアリティの場合）
+      var rewardSelectHtml = '';
+      if (isSameRarity && rewardItems.length > 1) {
+        rewardSelectHtml = '交換先: <select class="exchange-item-select" data-recipe-id="' + r.recipe_id + '" style="padding:3px 6px;border:1px solid #ddd;border-radius:8px;font-size:12px;margin-right:4px;">';
+        rewardItems.forEach(function(item) {
+          rewardSelectHtml += '<option value="' + item.item_id + '">' + item.item_name + '</option>';
+        });
+        rewardSelectHtml += '</select><br>';
+      }
+
+      var costDisplay = costItemName
+        ? '<span class="badge-' + cr + '">' + costItemName + '</span>'
+        : '<span class="badge-' + cr + '">' + r.cost_rarity + '</span>';
+
+      // 消費元アイテムが指定されている場合の所持数
+      if (r.cost_item_id) {
+        var costItemInv = itemMasterMap[r.cost_item_id];
+        have = costItemInv ? costItemInv.count : 0;
+        ok   = have >= r.cost_count;
+        btnAttr = ok ? '' : ' disabled';
       }
 
       html += '<tr>'
-        + '<td ' + tdStyle + '><span class="badge-' + cr + '">' + r.cost_rarity + '</span> × ' + r.cost_count + '個 → <span class="badge-' + rr + '">' + r.reward_rarity + '</span> 1個</td>'
+        + '<td ' + tdStyle + '>' + costDisplay + ' × ' + r.cost_count + '個 → <span class="badge-' + rr + '">' + r.reward_rarity + '</span> 1個</td>'
         + '<td ' + tdStyle + ' style="text-align:center;background:#fff;">' + have + '個</td>'
         + '<td ' + tdStyle + ' style="text-align:center;background:#fff;">' + r.cost_count + '個</td>'
         + '<td ' + tdStyle + ' style="background:#fff;">'
-        + selectHtml
+        + costSelectHtml
+        + rewardSelectHtml
         + '<button class="exchange-btn"' + btnAttr
         + ' data-recipe-id="' + r.recipe_id + '"'
         + ' data-description="' + r.description + '"'
         + ' data-same-rarity="' + isSameRarity + '"'
+        + ' data-has-cost-select="' + (!r.cost_item_id && costItems.length > 1) + '"'
         + ' onclick="handleExchange(this)">交換</button>'
         + '</td>'
         + '</tr>';
@@ -2015,24 +2041,30 @@ function loadItems() {
 }
 
 function handleExchange(btn) {
-  var recipeId    = btn.getAttribute('data-recipe-id');
-  var description = btn.getAttribute('data-description');
-  var isSame      = btn.getAttribute('data-same-rarity') === 'true';
+  var recipeId      = btn.getAttribute('data-recipe-id');
+  var description   = btn.getAttribute('data-description');
+  var isSame        = btn.getAttribute('data-same-rarity') === 'true';
+  var hasCostSelect = btn.getAttribute('data-has-cost-select') === 'true';
+  var row = btn.closest('tr');
   var rewardItemId = null;
+  var costItemId   = null;
   if (isSame) {
-    // 同レアリティの場合は隣のselectから選択中アイテムIDを取得
-    var row    = btn.closest('tr');
-    var select = row ? row.querySelector('.exchange-item-select') : null;
-    if (select) rewardItemId = select.value;
+    var rewardSelect = row ? row.querySelector('.exchange-item-select') : null;
+    if (rewardSelect) rewardItemId = rewardSelect.value;
   }
-  doExchangeByItem(recipeId, description, rewardItemId);
+  if (hasCostSelect) {
+    var costSelect = row ? row.querySelector('.exchange-cost-select') : null;
+    if (costSelect) costItemId = costSelect.value;
+  }
+  doExchangeByItem(recipeId, description, rewardItemId, costItemId);
 }
 
-function doExchangeByItem(recipeId, description, rewardItemId) {
+function doExchangeByItem(recipeId, description, rewardItemId, costItemId) {
   if (!confirm(description + '\nこの交換を実行しますか？')) return;
   msg('msg-exchange', '交換中...', '');
   var payload = { action: 'exchangeByItem', user_id: currentUser.user_id, recipe_id: recipeId };
   if (rewardItemId) payload.reward_item_id = rewardItemId;
+  if (costItemId)   payload.cost_item_id   = costItemId;
   api(payload, function(err, data) {
     if (err) { msg('msg-exchange', err, 'err'); return; }
     if (data.success) {
