@@ -2116,7 +2116,9 @@ function loadInventory() {
     // レアリティ順に並び替え
     var order = { UR:0, SSR:1, SR:2, R:3, C:4, N:5 };
     var sorted = data.inventory.slice().sort(function(a,b) {
-      return (order[a.rarity] || 9) - (order[b.rarity] || 9);
+      var rd = (order[a.rarity] || 9) - (order[b.rarity] || 9);
+      if (rd !== 0) return rd;
+      return a.item_name.localeCompare(b.item_name, 'ja');
     });
     var html = '<table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">'
       + '<thead><tr>'
