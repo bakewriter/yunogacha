@@ -1382,8 +1382,9 @@ function doRoll(count) {
       });
 
     if (hasFSTrigger) {
+      // UR演出動画を優先・SSR演出はスキップ
       playFullscreenVideo(FS_VIDEO_DATA_URL, function() {
-        showGachaResults(apiData.results); onAllDone();
+        showGachaResults(apiData.results, true); onAllDone();
       });
     } else {
       showGachaResults(apiData.results); onAllDone();
@@ -1408,12 +1409,12 @@ function doRoll(count) {
   });
 }
 
-function showGachaResults(results) {
+function showGachaResults(results, skipSSR) {
   var idle = document.getElementById('gacha-idle');
   var disp = document.getElementById('gacha-result-display');
   var lamp = document.getElementById('ssr-lamp');
 
-  var hasSSR = SSR_EFFECT_ENABLED && results.some(function(item){
+  var hasSSR = !skipSSR && SSR_EFFECT_ENABLED && results.some(function(item){
     return SSR_TRIGGER_RARITIES.indexOf(item.rarity) !== -1;
   });
 
