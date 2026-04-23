@@ -1014,6 +1014,15 @@
       </div>
       <div id="current-fs-video-id" style="font-size:11px;color:#aaa;margin-top:4px;"></div>
     </div>
+    <div class="admin-section">
+      <h2>フルスクリーン演出動画（スマホ用）</h2>
+      <p style="font-size:13px;color:#888;margin:0 0 10px;">スマホ版専用のFS動画ID。空欄の場合はPC版と同じIDが使われます。</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+        <input type="text" id="fullscreen-video-id-sp-input" placeholder="GoogleDriveファイルID（スマホ用）"
+          style="padding:6px 12px;border:1px solid #ddd;border-radius:16px;font-size:13px;width:300px;">
+      </div>
+      <div id="current-fs-video-id-sp" style="font-size:11px;color:#aaa;margin-top:4px;"></div>
+    </div>
     <div style="margin-top:8px;">
       <button class="admin-refresh-btn" onclick="adminSaveEffects()">演出設定を保存</button>
       <button class="admin-refresh-btn" style="background:#888;margin-left:8px;" onclick="adminLoadEffects()">再読み込み</button>
@@ -2544,6 +2553,10 @@ function adminLoadEffects() {
       document.getElementById('fullscreen-video-id-input').value = s.fs_video_id;
       document.getElementById('current-fs-video-id').textContent = '現在のID: ' + s.fs_video_id;
     }
+    if (s.fs_video_id_sp !== undefined) {
+      document.getElementById('fullscreen-video-id-sp-input').value = s.fs_video_id_sp || '';
+      document.getElementById('current-fs-video-id-sp').textContent = s.fs_video_id_sp ? '現在のID: ' + s.fs_video_id_sp : '（PC版と同じ）';
+    }
     if (s.fs_trigger_rarities) {
       document.querySelectorAll('.fs-trigger-chk').forEach(function(chk) {
         chk.checked = s.fs_trigger_rarities.indexOf(chk.value) !== -1;
@@ -2564,7 +2577,8 @@ function adminSaveEffects() {
   document.querySelectorAll('.ssr-trigger-chk:checked').forEach(function(chk){ triggers.push(chk.value); });
   var enabled    = document.getElementById('ssr-effect-toggle').checked;
   var videoId    = document.getElementById('gacha-video-id-input').value.trim();
-  var fsVideoId  = document.getElementById('fullscreen-video-id-input').value.trim();
+  var fsVideoId   = document.getElementById('fullscreen-video-id-input').value.trim();
+  var fsVideoIdSp = document.getElementById('fullscreen-video-id-sp-input').value.trim();
   var fsTriggers = [];
   document.querySelectorAll('.fs-trigger-chk:checked').forEach(function(chk){ fsTriggers.push(chk.value); });
   var msgEl = document.getElementById('admin-effect-msg');
@@ -2575,6 +2589,7 @@ function adminSaveEffects() {
     ssr_effect_enabled:   enabled,
     gacha_video_id:       videoId,
     fs_video_id:          fsVideoId,
+    fs_video_id_sp:       fsVideoIdSp,
     fs_trigger_rarities:  fsTriggers
   }, function(err, data) {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='保存失敗: ' + (data ? data.message : err); return; }
