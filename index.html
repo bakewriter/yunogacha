@@ -1978,10 +1978,10 @@ function loadItems() {
       var isSameRarity = (r.cost_rarity === r.reward_rarity);
       var rewardItems  = rarityItems[r.reward_rarity] || [];
 
-      // 消費元アイテム選択（cost_item_idが未指定で同レアの場合）
+      // 消費元アイテム選択（cost_item_idが未指定 かつ 同レアリティ交換の場合のみ）
       var costSelectHtml = '';
       var costItems = rarityItems[r.cost_rarity] || [];
-      if (!r.cost_item_id && costItems.length > 1) {
+      if (!r.cost_item_id && isSameRarity && costItems.length > 1) {
         costSelectHtml = '消費: <select class="exchange-cost-select" style="padding:3px 6px;border:1px solid #ddd;border-radius:8px;font-size:12px;margin-right:4px;">';
         costItems.forEach(function(item) {
           costSelectHtml += '<option value="' + item.item_id + '">' + item.item_name + '</option>';
