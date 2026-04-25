@@ -1931,20 +1931,25 @@ function loadItems() {
   if (!el) return;
   el.innerHTML = '<p style="font-size:13px;color:#999;">読み込み中...</p>';
 
-  var recipes = null, inventory = null;
+  var recipes = null, inventory = null, allItems = null;
 
   function tryRender() {
-    if (recipes === null || inventory === null) return;
+    if (recipes === null || inventory === null || allItems === null) return;
 
     // レアリティ別所持数とアイテム一覧を集計
     var rarityCount = {};
-    var rarityItems = {}; // レアリティ→アイテム一覧
+    var rarityItems = {}; // レアリティ→所持アイテム一覧
     var itemMasterMap = {}; // アイテムIDからアイテム情報へのマップ
+    var allItemsByRarity = {}; // レアリティ→マスタ全アイテム
     inventory.forEach(function(item) {
       rarityCount[item.rarity] = (rarityCount[item.rarity] || 0) + item.count;
       if (!rarityItems[item.rarity]) rarityItems[item.rarity] = [];
       rarityItems[item.rarity].push(item);
       itemMasterMap[item.item_id] = item;
+    });
+    allItems.forEach(function(item) {
+      if (!allItemsByRarity[item.rarity]) allItemsByRarity[item.rarity] = [];
+      allItemsByRarity[item.rarity].push(item);
     });
 
     var tdStyle = 'style="background:#fff;padding:6px 10px;border:1px solid #f0f0f0;"';
@@ -1973,7 +1978,7 @@ function loadItems() {
 
       // 同レアリティ交換の場合は交換先アイテムをプルダウンで選択
       var isSameRarity = (r.cost_rarity === r.reward_rarity);
-      var rewardItems  = rarityItems[r.reward_rarity] || [];
+      var rewardItems  = (allItemsByRarity[r.reward_rarity] || []).filter(function(item) { return !r.cost_item_id || item.item_id !== r.cost_item_id; });
 
       // 消費元アイテム選択（cost_item_idが未指定 かつ 同レアリティ交換の場合のみ）
       var costSelectHtml = '';
