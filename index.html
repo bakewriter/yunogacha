@@ -2257,13 +2257,8 @@ function submitRedeem() {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
     msgEl.style.color='#080'; msgEl.textContent=data.message;
     if (data.download_url) {
-      var a = document.createElement('a');
-      a.href = data.download_url;
-      a.target = '_blank';
-      a.download = '';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      var msgEl2 = document.getElementById('msg-redeem');
+      msgEl2.innerHTML = data.message + '<br><a href="' + data.download_url + '" target="_blank" style="display:inline-block;margin-top:10px;padding:10px 20px;background:linear-gradient(135deg,#ff80b0,#ffb347);color:#fff;border-radius:20px;font-weight:bold;text-decoration:none;font-size:14px;">ダウンロードする</a>';
     }
     document.getElementById('redeem-form-wrap').style.display = 'none';
     currentRedeemItem = null;
