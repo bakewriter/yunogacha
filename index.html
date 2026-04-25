@@ -2225,29 +2225,46 @@ function loadRedeemItems() {
 function openRedeemForm(itemId, itemType) {
   currentRedeemItem = { item_id: itemId, item_type: itemType };
   var wrap  = document.getElementById('redeem-form-wrap');
-  var msg   = document.getElementById('msg-redeem');
-  var emailEl = document.getElementById('redeem-email');
+  var msgEl = document.getElementById('msg-redeem');
+  var choiceWrap = document.getElementById('redeem-choice-wrap');
   wrap.style.display = 'block';
-  msg.textContent = '';
-  if (emailEl && currentUser.email) emailEl.value = currentUser.email;
-  wrap.scrollIntoView({behavior:'smooth'});
+  msgEl.textContent = '';
+  if (choiceWrap) { choiceWrap.innerHTML = ''; choiceWrap.style.display = 'none'; }
+  if (itemType === 'digital') {
+    api({ action: 'getVoiceChoices', item_id: itemId }, function(err, data) {
+      if (!err && data && data.success && data.choices && data.choices.length > 0) {
+        var sel = '<div style="margin-bottom:10px;"><div style="font-size:12px;color:#888;margin-bottom:4px;">バリエーションを選択</div>'
+          + '<select id="redeem-voice-select" style="width:100%;padding:8px 12px;border:1px solid #f0c0d8;border-radius:12px;font-size:14px;">';
+        data.choices.forEach(function(c) {
+          sel += '<option value="' + c.file_id + '" data-label="' + c.label + '">' + c.label + '</option>';
+        });
+        sel += '</select></div>';
+        if (choiceWrap) { choiceWrap.innerHTML = sel; choiceWrap.style.display = 'block'; }
+      }
+    });
+  }
+  wrap.scrollIntoView({ behavior: 'smooth' });
 }
 
 function submitRedeem() {
   if (!currentRedeemItem) return;
   var msgEl = document.getElementById('msg-redeem');
-  var email = document.getElementById('redeem-email').value.trim();
-  if (!email) { msgEl.style.color='#c00'; msgEl.textContent='メールアドレスを入力してください'; return; }
-  msgEl.style.color='#888'; msgEl.textContent='申請中...';
-  api({
-    action:    'redeemItem',
-    user_id:   currentUser.user_id,
-    item_id:   currentRedeemItem.item_id,
-    item_type: currentRedeemItem.item_type,
-    email:     email
-  }, function(err, data) {
+  var voiceSel = document.getElementById('redeem-voice-select');
+  var selectedFileId = (voiceSel && voiceSel.value) ? voiceSel.value : '';
+  var selectedLabel  = (voiceSel && voiceSel.selectedIndex >= 0 && voiceSel.options[voiceSel.selectedIndex]) ? (voiceSel.options[voiceSel.selectedIndex].getAttribute('data-label') || '') : '';
+  msgEl.style.color = '#888'; msgEl.textContent = '申請中...';
+  api({ action:'redeemItem', user_id:currentUser.user_id, item_id:currentRedeemItem.item_id, item_type:currentRedeemItem.item_type, email:'', selected_file_id:selectedFileId, selected_label:selectedLabel }, function(err, data) {
     if (err || !data.success) { msgEl.style.color='#c00'; msgEl.textContent='失敗: ' + (data ? data.message : err); return; }
     msgEl.style.color='#080'; msgEl.textContent=data.message;
+    if (data.download_url) {
+      var a = document.createElement('a');
+      a.href = data.download_url;
+      a.target = '_blank';
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
     document.getElementById('redeem-form-wrap').style.display = 'none';
     currentRedeemItem = null;
     loadRedeemItems();
