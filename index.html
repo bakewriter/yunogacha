@@ -2040,6 +2040,10 @@ function loadItems() {
     inventory = (data && data.success) ? data.inventory : [];
     tryRender();
   });
+  api({ action: 'getItems' }, function(err, data) {
+    allItems = (data && data.success) ? data.items : [];
+    tryRender();
+  });
 }
 
 function handleExchange(btn) {
